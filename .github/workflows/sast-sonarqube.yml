@@ -64,92 +64,90 @@ jobs:
     outputs:
       job_status: ${{ job.status }}
 
-  check-qg:
-      needs: [sast]
-      runs-on: ubuntu-latest
-      steps:
-        - name: Query SonarCloud Quality Gate (project)
-          id: qg
-          run: |
-            STATUS=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: \
-              "https://sonarcloud.io/api/qualitygates/project_status?projectKey=${{ secrets.SONAR_PROJECT_KEY }}" \
-              | jq -r '.projectStatus.status')
-            echo "status=${STATUS}" >> ${GITHUB_OUTPUT}
-      outputs:
-        qg_status: ${{ steps.qg.outputs.status }}
+  quality-gate:
+    needs: [sast]
+    runs-on: ubuntu-latest
+    steps:
+      - name: SonarCloud Quality Gate
+        id: qg
+        uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    outputs:
+      qg_status: ${{ steps.qg.outputs.quality-gate-status }} # 'OK' | 'ERROR'
 
   compose-slack-alert-on-fail:
-      needs: [sast, check-qg]
-      if: ${{ needs.sast.outputs.job_status != 'success' || needs.check-qg.outputs.qg_status == 'ERROR' }}
-      runs-on: ubuntu-latest
-      steps:
-        - name: Notify Slack (Quality Gate/Job failed)
-          id: msg
-          env:
-            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-            REPO: ${{ github.repository }}
-            REF_NAME: ${{ github.ref_name }}
-            ACTOR: ${{ github.actor }}
-            EVENT_NAME: ${{ github.event_name }}
-            RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-            SONAR_PROJ: ${{ secrets.SONAR_PROJECT_KEY }}
-            PR_URL: ${{ github.event_name == 'pull_request' && github.event.pull_request.html_url || '' }}
-            PR_NUM: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-            PR_TITLE: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || '' }}
-          run: |
-            if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$PR_NUM" ]; then
-              SONAR_PR_URL="https://sonarcloud.io/dashboard?id=${SONAR_PROJ}&pullRequest=${PR_NUM}"
-              PR_BLOCK=$(cat <<EOF
-                {
-                  "type": "section",
-                  "text": { "type": "mrkdwn", "text": "*Pull Request:* PR #${PR_NUM} - ${PR_TITLE}" }
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    { "type": "button", "text": { "type": "plain_text", "text": "Check PR" }, "url": "${PR_URL}" },
-                    { "type": "button", "text": { "type": "plain_text", "text": "SonarCloud (PR)" }, "url": "${SONAR_PR_URL}" },
-                    { "type": "button", "text": { "type": "plain_text", "text": "GitHub Actions" }, "url": "${RUN_URL}" }
-                  ]
-                }
-            EOF
-            )
-                else
-                  PR_BLOCK=$(cat <<EOF
-                    {
-                      "type": "context",
-                      "elements": [{ "type": "mrkdwn", "text": "_Event: push (no PR)_" }]
-                    },
-                    {
-                      "type": "actions",
-                      "elements": [
-                        { "type": "button", "text": { "type": "plain_text", "text": "SonarCloud (Project)" }, "url": "https://sonarcloud.io/project/overview?id=${SONAR_PROJ}" },
-                        { "type": "button", "text": { "type": "plain_text", "text": "GitHub Actions" }, "url": "${RUN_URL}" }
-                      ]
-                    }
-            EOF
-            )
-                fi
-
-                payload=$(cat <<EOF
-                {
-                  "attachments": [{
-                    "color": "#D32F2F",
-                    "blocks": [
-                      { "type": "header", "text": { "type": "plain_text", "text": "🚨 SAST Analysis just Failed (Quality Gate/Job FAILED) 🚨" } },
-                      { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo:* ${REPO}" } },
-                      { "type": "section", "text": { "type": "mrkdwn", "text": "*Branch:* ${REF_NAME}\n*Actor:* ${ACTOR}\n*Event:* ${EVENT_NAME}" }},
-                      ${PR_BLOCK}
+    needs: [sast, quality-gate]
+    if: ${{ needs.sast.result != 'success' || needs.quality-gate.outputs.qg_status == 'ERROR' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Slack (Quality Gate/Job failed)
+        id: msg
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          REPO: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SONAR_PROJ: ${{ secrets.SONAR_PROJECT_KEY }}
+          PR_URL: ${{ github.event_name == 'pull_request' && github.event.pull_request.html_url || '' }}
+          PR_NUM: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          PR_TITLE: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || '' }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$PR_NUM" ]; then
+            SONAR_PR_URL="https://sonarcloud.io/dashboard?id=${SONAR_PROJ}&pullRequest=${PR_NUM}"
+            PR_BLOCK=$(cat <<EOF
+              {
+                "type": "section",
+                "text": { "type": "mrkdwn", "text": "*Pull Request:* PR #${PR_NUM} - ${PR_TITLE}" }
+              },
+              {
+                "type": "actions",
+                "elements": [
+                  { "type": "button", "text": { "type": "plain_text", "text": "Check PR" }, "url": "${PR_URL}" },
+                  { "type": "button", "text": { "type": "plain_text", "text": "SonarCloud (PR)" }, "url": "${SONAR_PR_URL}" },
+                  { "type": "button", "text": { "type": "plain_text", "text": "GitHub Actions" }, "url": "${RUN_URL}" }
+                ]
+              }
+          EOF
+          )
+              else
+                PR_BLOCK=$(cat <<EOF
+                  {
+                    "type": "context",
+                    "elements": [{ "type": "mrkdwn", "text": "_Event: push (no PR)_" }]
+                  },
+                  {
+                    "type": "actions",
+                    "elements": [
+                      { "type": "button", "text": { "type": "plain_text", "text": "SonarCloud (Project)" }, "url": "https://sonarcloud.io/project/overview?id=${SONAR_PROJ}" },
+                      { "type": "button", "text": { "type": "plain_text", "text": "GitHub Actions" }, "url": "${RUN_URL}" }
                     ]
-                  }]
-                }
-            EOF
-            )
-                
-            payload="${payload//'%'/'%25'}"; payload="${payload//$'\n'/'%0A'}"; payload="${payload//$'\r'/'%0D'}"
-            echo "payload=$payload" >> $GITHUB_OUTPUT
-      outputs:
-        slack_payload: ${{ steps.msg.outputs.payload }}
+                  }
+          EOF
+          )
+              fi
+
+              payload=$(cat <<EOF
+              {
+                "attachments": [{
+                  "color": "#D32F2F",
+                  "blocks": [
+                    { "type": "header", "text": { "type": "plain_text", "text": "🚨 SAST Analysis just Failed (Quality Gate/Job FAILED) 🚨" } },
+                    { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo:* ${REPO}" } },
+                    { "type": "section", "text": { "type": "mrkdwn", "text": "*Branch:* ${REF_NAME}\n*Actor:* ${ACTOR}\n*Event:* ${EVENT_NAME}" }},
+                    ${PR_BLOCK}
+                  ]
+                }]
+              }
+          EOF
+          )
+              
+          payload="${payload//'%'/'%25'}"; payload="${payload//$'\n'/'%0A'}"; payload="${payload//$'\r'/'%0D'}"
+          echo "payload=$payload" >> $GITHUB_OUTPUT
+    outputs:
+      slack_payload: ${{ steps.msg.outputs.payload }}
 
   alerts:
     needs: [compose-slack-alert-on-fail]
