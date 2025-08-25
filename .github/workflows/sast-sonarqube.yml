@@ -24,18 +24,19 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('api-auth/requirements.txt', 'api-auth/requirements-dev.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('api-auth/requirements.txt', 'api-auth/test/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
       - name: Install dependencies
         run: |
+          if [ -f api-auth/test/requirements.txt ]; then pip install -r api-auth/test/requirements.txt; fi
           if [ -f api-auth/requirements.txt ]; then pip install -r api-auth/requirements.txt; fi
-          if [ -f api-auth/requirements-dev.txt ]; then pip install -r api-auth/requirements-dev.txt; fi
 
       - name: Run tests with coverage (pytest-cov)
         working-directory: api-auth
         run: |
+          export PYTHONPATH=${PWD}
           pytest --maxfail=1 -q --cov=. --cov-report=xml:coverage.xml
 
       - name: Upload coverage artifact
@@ -60,3 +61,129 @@ jobs:
           args: >
             -Dsonar.organization=${{ secrets.SONAR_ORG }}
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+
+check-qg:
+    needs: [sonarcloud-python]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query SonarCloud Quality Gate (project)
+        id: qg
+        run: |
+          STATUS=$(curl -s -u ${{ secrets.SONAR_TOKEN }}: \
+            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=${{ secrets.SONAR_PROJECT_KEY }}" \
+            | jq -r '.projectStatus.status')
+          echo "status=${STATUS}" >> ${GITHUB_OUTPUT}
+    outputs:
+      qg_status: ${{ steps.qg.outputs.status }}
+
+notify-slack-on-fail:
+    needs: [sonarcloud-python, check-qg]
+    if: ${{ needs.sonarcloud-python.outputs.job_status != 'success' || needs.check-qg.outputs.qg_status == 'ERROR' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Slack (Quality Gate/Job failed)
+        run: |
+          payload=$(cat << 'JSON'
+          {
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": ":rotating_light: Quality Gate / Job FAILED"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Repo:*\n${{ github.repository }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Branch:*\n${{ github.ref_name }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Actor:*\n${{ github.actor }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Event:*\n${{ github.event_name }}"
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Run:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Check on GitHub Actions>"
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*SonarCloud:* <https://sonarcloud.io/project/overview?id=${{ secrets.SONAR_PROJECT_KEY }}|Go to Project>"
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": ${{ github.event_name == 'pull_request' && format('"*Pull Request:* <{0}|PR #{1} - {2}>"', github.event.pull_request.html_url, github.event.pull_request.number, github.event.pull_request.title) || '"It's not a PR (push)"' }}
+                }
+              }
+            ]
+          }
+          JSON
+          )
+          curl -X POST -H 'Content-type: application/json' \
+            --data "$payload" \
+            "${{ secrets.SLACK_WEBHOOK_URL }}"
+
+notify-email-on-fail:
+  needs: [sonarcloud-python, check-qg]
+  if: ${{ needs.sonarcloud-python.outputs.job_status != 'success' || needs.check-qg.outputs.qg_status == 'ERROR' }}
+  runs-on: ubuntu-latest
+  steps:
+    - name: Send email (Outlook/Office 365 SMTP)
+      uses: dawidd6/action-send-mail@v6
+      with:
+        server_address: ${{ secrets.SMTP_HOST }}
+        server_port: ${{ secrets.SMTP_PORT }}
+        secure: true
+        username: ${{ secrets.SMTP_USERNAME }}
+        password: ${{ secrets.SMTP_PASSWORD }}
+        subject: "[ALERT] Quality Gate/Job FAILED - ${{ github.repository }}"
+        to: ${{ secrets.MAIL_TO }}
+        from: "DevSecOps Bot <${{ secrets.SMTP_USERNAME }}>"
+        content_type: text/html
+        # Optional unsigned/invalid certificates allowance:
+        #ignore_cert: true
+        # Optional carbon copy recipients:
+        #cc: email@example.com,email@example.com
+        # Optional blind carbon copy recipients:
+        #bcc: email@example.com,email@example.com
+        body: |
+          <p>SAST Analysis just Failed (Quality Gate or job).</p>
+          
+          <h3>Context:</h3>
+          <ul>
+            <li><b>Repo:</b> ${{ github.repository }}</li>
+            <li><b>Event:</b> ${{ github.event_name }}</li>
+            <li><b>Actor:</b> ${{ github.actor }}</li>
+            <li><b>Run:</b> <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">check on GitHub Actions</a></li>
+          </ul>
+
+          ${{ github.event_name == 'pull_request' && format('<h3>Pull Request</h3><ul><li><b>PR #:</b> {0}</li><li><b>Título:</b> {1}</li><li><b>URL:</b> <a href="{2}">{2}</a></li></ul>', github.event.pull_request.number, github.event.pull_request.title, github.event.pull_request.html_url) || '' }}
+
+          ${{ github.event_name != 'pull_request' && format('<h3>Commit</h3><ul><li><b>SHA:</b> {0}</li><li><b>URL:</b> <a href="{1}/{2}/commit/{0}">{1}/{2}/commit/{0}</a></li></ul>', github.sha, github.server_url, github.repository) || '' }}
+
+          <h3>SonarCloud</h3>
+          <ul>
+            <li><b>Proyecto:</b> <a href="https://sonarcloud.io/project/overview?id=${{ secrets.SONAR_PROJECT_KEY }}">overview</a></li>
+            ${{ github.event_name == 'pull_request' && format('<li><b>Análisis del PR:</b> <a href="https://sonarcloud.io/project/analysis?id={0}&pullRequest={1}">check on SonarCloud</a></li>', secrets.SONAR_PROJECT_KEY, github.event.pull_request.number) || '' }}
+          </ul>
+          <p>Please check Issues/Vulnerabilities/Hotspots on SonarCloud.</p>
