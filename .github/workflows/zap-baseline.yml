@@ -1,0 +1,54 @@
+name: DAST (OWASP ZAP Baseline)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"   # nightly opcional
+
+jobs:
+  zap-baseline:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_URL: ${{ secrets.TARGET_URL || 'http://localhost:8080' }}
+      BASELINE_HTML: security/evidence/zap/baseline-$(date +%F).html
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure evidence dir
+        run: mkdir -p security/evidence/zap
+
+      - name: Start API with docker-compose (if present)
+        if: ${{ hashFiles('api-auth/docker-compose.yml') != '' }}
+        run: |
+          docker compose -f api-auth/docker-compose.yml up -d
+          # espera básico a que el servicio responda
+          for i in {1..30}; do
+            curl -sf $TARGET_URL && break || sleep 3
+          done
+
+      - name: ZAP Baseline Scan
+        run: |
+          docker run --rm -t \
+            -v "$(pwd)":/zap/wrk:rw \
+            owasp/zap2docker-stable zap-baseline.py \
+              -t "$TARGET_URL" \
+              -g gen.conf \
+              -r "$(basename $BASELINE_HTML)" \
+              -x baseline-report.xml \
+              -m 5 \
+              -w baseline-warnings.md
+          mv "$(basename $BASELINE_HTML)" "$BASELINE_HTML"
+
+      - name: Upload ZAP artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-baseline
+          path: |
+            security/evidence/zap/*.html
+            baseline-report.xml
+            baseline-warnings.md
+
+      - name: Fail on HIGH/CRITICAL alerts
+        run: |
+          # Falla si el XML contiene alertas de riesgo Alto/Critico
+          grep -E "<riskcode>(3|4)</riskcode>" baseline-report.xml && exit 1 || exit 0

@@ -1,0 +1,56 @@
+name: SCA & Container Scan (Trivy)
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          cache: true
+
+      - name: Trivy FS (dependencias del repo)
+        run: |
+          mkdir -p security/evidence/trivy
+          trivy fs . --format json --output security/evidence/trivy/fs-$(date +%F).json || true
+
+      - name: Build image (si existe Dockerfile en api-auth/)
+        if: ${{ hashFiles('api-auth/Dockerfile') != '' }}
+        run: docker build -t api-auth:ci ./api-auth
+
+      - name: Trivy Image (si se construyó imagen)
+        if: ${{ hashFiles('api-auth/Dockerfile') != '' }}
+        run: |
+          trivy image api-auth:ci --format json \
+            --output security/evidence/trivy/img-$(date +%F).json || true
+
+      - name: Fail on HIGH/CRITICAL (FS)
+        run: |
+          jq -e '
+            .Results[]
+            | .Vulnerabilities // []
+            | map(select(.Severity=="HIGH" or .Severity=="CRITICAL"))
+            | length == 0
+          ' security/evidence/trivy/fs-*.json
+      - name: Fail on HIGH/CRITICAL (Image)
+        if: ${{ hashFiles('api-auth/Dockerfile') != '' }}
+        run: |
+          jq -e '
+            .Results[]
+            | .Vulnerabilities // []
+            | map(select(.Severity=="HIGH" or .Severity=="CRITICAL"))
+            | length == 0
+          ' security/evidence/trivy/img-*.json
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-reports
+          path: security/evidence/trivy/*.json

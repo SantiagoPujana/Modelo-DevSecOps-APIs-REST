@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'api-auth'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['api-auth:8080']   # si corres por docker-compose
+        labels:
+          service: api-auth

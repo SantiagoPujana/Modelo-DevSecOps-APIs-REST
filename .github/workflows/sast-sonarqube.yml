@@ -1,0 +1,64 @@
+name: SAST (SonarCloud - Python)
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  sonarcloud-python:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('api-auth/requirements.txt', 'api-auth/requirements-dev.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          if [ -f api-auth/requirements.txt ]; then pip install -r api-auth/requirements.txt; fi
+          if [ -f api-auth/requirements-dev.txt ]; then pip install -r api-auth/requirements-dev.txt; fi
+
+      - name: Run tests with coverage (pytest-cov)
+        working-directory: api-auth
+        run: |
+          pytest --maxfail=1 -q --cov=. --cov-report=xml:coverage.xml
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: api-auth/coverage.xml
+
+      # SonarCloud necesita JDK para el scanner
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # Escaneo en SonarCloud
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=${{ secrets.SONAR_ORG }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.sources=api-auth
+            -Dsonar.tests=api-auth/tests
+            -Dsonar.python.coverage.reportPaths=api-auth/coverage.xml
+            -Dsonar.python.version=3.11
