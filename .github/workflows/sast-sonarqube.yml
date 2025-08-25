@@ -136,7 +136,6 @@ jobs:
                       { "type": "header", "text": { "type": "plain_text", "text": "🚨 SAST Analysis just Failed (Quality Gate/Job FAILED) 🚨" } },
                       { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo:* ${REPO}" } },
                       { "type": "section", "text": { "type": "mrkdwn", "text": "*Branch:* ${REF_NAME}\n*Actor:* ${ACTOR}\n*Event:* ${EVENT_NAME}" }},
-                      { "type": "divider" },
                       ${PR_BLOCK}
                     ]
                   }]
@@ -155,7 +154,7 @@ jobs:
         with:
           server_address: ${{ secrets.SMTP_HOST }}
           server_port: ${{ secrets.SMTP_PORT }}
-          secure: false
+          secure: true
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: "[ALERT] SAST Analysis just Failed (Quality Gate/Job FAILED) - ${{ github.repository }}"
