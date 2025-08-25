@@ -61,24 +61,22 @@ jobs:
           args: >
             -Dsonar.organization=${{ secrets.SONAR_ORG }}
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
-    outputs:
-      job_status: ${{ job.status }}
-
-  quality-gate:
-    needs: [sast]
-    runs-on: ubuntu-latest
-    steps:
+      
       - name: SonarCloud Quality Gate
         id: qg
         uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        # with:
+        #   scanMetadataReportFile: .scannerwork/report-task.txt # (default)      
+
     outputs:
+      job_status: ${{ job.status }}
       qg_status: ${{ steps.qg.outputs.quality-gate-status }} # 'OK' | 'ERROR'
 
   compose-slack-alert-on-fail:
-    needs: [sast, quality-gate]
-    if: ${{ needs.sast.result != 'success' || needs.quality-gate.outputs.qg_status == 'ERROR' }}
+    needs: [sast]
+    if: ${{ needs.sast.result != 'success' || needs.sast.outputs.qg_status == 'ERROR' }}
     runs-on: ubuntu-latest
     steps:
       - name: Notify Slack (Quality Gate/Job failed)
@@ -161,7 +159,7 @@ jobs:
       MAIL_TO: ${{ secrets.MAIL_TO }}
       SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
     with:
-      status: ${{ needs.sast.job_status }}
+      status: ${{ needs.sast.result }}
       only_if_failed: true
       send_slack: true
       slack_payload: ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}
