@@ -1,0 +1,89 @@
+name: Alerts Sender
+
+on:
+  workflow_call:
+    inputs:
+      status:
+        description: "Job result: success|failure|cancelled|timed_out"
+        required: true
+        type: string
+      only_if_failed:
+        description: "Only Send if failed"
+        required: false
+        type: boolean
+        default: true
+      send_slack:
+        required: false
+        type: boolean
+        default: true
+      slack_payload:
+        description: "Slack Payload JSON Formatted already"
+        required: false
+        type: string
+        default: ""
+      send_email:
+        required: false
+        type: boolean
+        default: false
+      email_subject:
+        required: false
+        type: string
+        default: ""
+      email_body:
+        required: false
+        type: string
+        default: ""
+    secrets:
+      SLACK_WEBHOOK_URL:
+        required: false
+      SMTP_HOST:
+        required: false
+      SMTP_PORT:
+        required: false
+      SMTP_USERNAME:
+        required: false
+      SMTP_PASSWORD:
+        required: false
+      MAIL_TO:
+        required: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gate (skip if success and only_if_failed=true)
+        id: gate
+        run: |
+          if [ "${{ inputs.only_if_failed }}" = "true" ] && [ "${{ inputs.status }}" = "success" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Slack - send
+        if: ${{ steps.gate.outputs.skip == 'false' && inputs.send_slack && inputs.slack_payload != '' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          printf '%s' '${{ inputs.slack_payload }}' > payload.json
+          curl -sS -X POST -H 'Content-type: application/json' --data @payload.json "$SLACK_WEBHOOK_URL"
+
+      - name: Email - send
+        if: ${{ steps.gate.outputs.skip == 'false' && inputs.send_email && inputs.email_subject != '' && inputs.email_body != '' }}
+        uses: dawidd6/action-send-mail@v6
+        with:
+          server_address: ${{ secrets.SMTP_HOST }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          secure: false                # STARTTLS in port 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: ${{ inputs.email_subject }}
+          to: ${{ secrets.MAIL_TO }}
+          from: "${{ secrets.SMTP_USERNAME }}"
+          html_body: ${{ inputs.email_body }}
+          # Optional unsigned/invalid certificates allowance:
+          #ignore_cert: true
+          # Optional carbon copy recipients:
+          #cc: email@example.com,email@example.com
+          # Optional blind carbon copy recipients:
+          #bcc: email@example.com,email@example.com

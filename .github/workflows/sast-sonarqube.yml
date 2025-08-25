@@ -6,7 +6,7 @@ on:
     branches: [ main ]
 
 jobs:
-  sonarcloud-python:
+  sast:
     runs-on: ubuntu-latest
 
     steps:
@@ -61,9 +61,11 @@ jobs:
           args: >
             -Dsonar.organization=${{ secrets.SONAR_ORG }}
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+    outputs:
+      job_status: ${{ job.status }}
 
   check-qg:
-      needs: [sonarcloud-python]
+      needs: [sast]
       runs-on: ubuntu-latest
       steps:
         - name: Query SonarCloud Quality Gate (project)
@@ -76,12 +78,13 @@ jobs:
       outputs:
         qg_status: ${{ steps.qg.outputs.status }}
 
-  notify-slack-on-fail:
-      needs: [sonarcloud-python, check-qg]
-      if: ${{ needs.sonarcloud-python.outputs.job_status != 'success' || needs.check-qg.outputs.qg_status == 'ERROR' }}
+  compose-slack-alert-on-fail:
+      needs: [sast, check-qg]
+      if: ${{ needs.sast.outputs.job_status != 'success' || needs.check-qg.outputs.qg_status == 'ERROR' }}
       runs-on: ubuntu-latest
       steps:
         - name: Notify Slack (Quality Gate/Job failed)
+          id: msg
           env:
             SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
             REPO: ${{ github.repository }}
@@ -142,32 +145,35 @@ jobs:
                 }
             EOF
             )
-                curl -X POST -H 'Content-type: application/json' --data "$payload" "${SLACK_WEBHOOK_URL}"
+                
+            payload="${payload//'%'/'%25'}"; payload="${payload//$'\n'/'%0A'}"; payload="${payload//$'\r'/'%0D'}"
+            echo "payload=$payload" >> $GITHUB_OUTPUT
 
-  notify-email-on-fail:
-    needs: [sonarcloud-python, check-qg]
-    if: ${{ needs.sonarcloud-python.outputs.job_status != 'success' || needs.check-qg.outputs.qg_status == 'ERROR' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send email (Outlook -> Office 365) SMTP
-        uses: dawidd6/action-send-mail@v6
-        with:
-          server_address: ${{ secrets.SMTP_HOST }}
-          server_port: ${{ secrets.SMTP_PORT }}
-          secure: true
-          username: ${{ secrets.SMTP_USERNAME }}
-          password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "[ALERT] SAST Analysis just Failed (Quality Gate/Job FAILED) - ${{ github.repository }}"
-          to: ${{ secrets.MAIL_TO }}
-          from: "DevSecOps Bot <${{ secrets.SMTP_USERNAME }}>"
-          # Optional unsigned/invalid certificates allowance:
-          #ignore_cert: true
-          # Optional carbon copy recipients:
-          #cc: email@example.com,email@example.com
-          # Optional blind carbon copy recipients:
-          #bcc: email@example.com,email@example.com
-          html_body: |
-            <h2>🚨 SAST Analysis just FAILED (Quality Gate/Job) 🚨</h2>
+            #curl -X POST -H 'Content-type: application/json' --data "$payload" "${SLACK_WEBHOOK_URL}"
+
+      outputs:
+        slack_payload: ${{ steps.msg.outputs.payload }}
+
+  alerts:
+    needs: [compose-slack-alert-on-fail]
+    uses: ./.github/workflows/alerts-send.yml
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      MAIL_TO: ${{ secrets.MAIL_TO }}
+      SONAR_PROJ: ${{ secrets.SONAR_PROJECT_KEY }}
+    with:
+      status: ${{ needs.sast.job_status }}
+      only_if_failed: true
+      send_slack: true
+      slack_payload: ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}
+      send_email: true
+      email_subject: "[ALERT] SAST FAILED - ${{ github.repository }}"
+      email_body: |
+        <h2>🚨 SAST Analysis just FAILED (Quality Gate/Job) 🚨</h2>
             
             <table border="0" cellpadding="5">
               <tr><td><b>Repo:</b></td><td>${{ github.repository }}</td></tr>
@@ -185,11 +191,11 @@ jobs:
             </p>
 
             <p><b>SonarCloud Project:</b> 
-              <a href="https://sonarcloud.io/project/overview?id=${{ secrets.SONAR_PROJECT_KEY }}">Overview</a>
+              <a href="https://sonarcloud.io/project/overview?id=${SONAR_PROJ}}">Overview</a>
             </p>
 
             <p><b>SonarCloud (PR):</b> 
-              <a href="https://sonarcloud.io/dashboard?id=${{ secrets.SONAR_PROJECT_KEY }}&pullRequest=${{ github.event.pull_request.number }}">
+              <a href="https://sonarcloud.io/dashboard?id=${SONAR_PROJ}&pullRequest=${{ github.event.pull_request.number }}">
                 Check PR on SonarCloud
               </a>
             </p>
