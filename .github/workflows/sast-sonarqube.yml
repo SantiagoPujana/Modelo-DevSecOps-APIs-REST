@@ -99,7 +99,7 @@ jobs:
               PR_BLOCK=$(cat <<EOF
                 {
                   "type": "section",
-                  "text": { "type": "mrkdwn", "text": "*Pull Request:* <${PR_URL}|PR #${PR_NUM} - ${PR_TITLE}>" }
+                  "text": { "type": "mrkdwn", "text": "*Pull Request:* <PR #${PR_NUM} - ${PR_TITLE}>" }
                 },
                 {
                   "type": "actions",
