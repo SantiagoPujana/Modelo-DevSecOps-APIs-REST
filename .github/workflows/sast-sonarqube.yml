@@ -104,64 +104,64 @@ jobs:
                 {
                   "type": "actions",
                   "elements": [
-                    { "type": "button", "text": { "type": "plain_text", "text": "Ver PR" }, "url": "${PR_URL}" },
+                    { "type": "button", "text": { "type": "plain_text", "text": "Check PR" }, "url": "${PR_URL}" },
                     { "type": "button", "text": { "type": "plain_text", "text": "SonarCloud (PR)" }, "url": "${SONAR_PR_URL}" },
                     { "type": "button", "text": { "type": "plain_text", "text": "GitHub Actions" }, "url": "${RUN_URL}" }
                   ]
                 }
-              EOF
-              )
-            else
-              PR_BLOCK=$(cat <<EOF
-                {
-                  "type": "context",
-                  "elements": [{ "type": "mrkdwn", "text": "_Evento: push (no PR)_" }]
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    { "type": "button", "text": { "type": "plain_text", "text": "SonarCloud (Project)" }, "url": "https://sonarcloud.io/project/overview?id=${SONAR_PROJ}" },
-                    { "type": "button", "text": { "type": "plain_text", "text": "GitHub Actions" }, "url": "${RUN_URL}" }
-                  ]
-                }
-              EOF
-              )
-            fi
-          
-            payload=$(cat <<EOF
-            {
-              "attachments": [{
-                "color": "#D32F2F",
-                "blocks": [
-                  { "type": "header", "text": { "type": "plain_text", "text": "🚨 SAST Analysis just Failed (Quality Gate/Job FAILED) 🚨" } },
-                  { "type": "section", "fields": [
-                      { "type": "mrkdwn", "text": "*Repo:*\n${REPO}" },
-                      { "type": "mrkdwn", "text": "*Branch:*\n${REF_NAME}" },
-                      { "type": "mrkdwn", "text": "*Actor:*\n${ACTOR}" },
-                      { "type": "mrkdwn", "text": "*Evento:*\n${EVENT_NAME}" }
-                  ]},
-                  { "type": "section", "text": { "type": "mrkdwn", "text": "*Run:* <${RUN_URL}|Open GitHub Actions Execution>" } },
-                  { "type": "section", "text": { "type": "mrkdwn", "text": "*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=${SONAR_PROJ}|Go to Project>" } },
-                  { "type": "divider" },
-                  ${PR_BLOCK}
-                ]
-              }]
-            }
             EOF
             )
-            curl -X POST -H 'Content-type: application/json' --data "$payload" "${SLACK_WEBHOOK_URL}"
+                else
+                  PR_BLOCK=$(cat <<EOF
+                    {
+                      "type": "context",
+                      "elements": [{ "type": "mrkdwn", "text": "_Event: push (no PR)_" }]
+                    },
+                    {
+                      "type": "actions",
+                      "elements": [
+                        { "type": "button", "text": { "type": "plain_text", "text": "SonarCloud (Project)" }, "url": "https://sonarcloud.io/project/overview?id=${SONAR_PROJ}" },
+                        { "type": "button", "text": { "type": "plain_text", "text": "GitHub Actions" }, "url": "${RUN_URL}" }
+                      ]
+                    }
+            EOF
+            )
+                fi
+
+                payload=$(cat <<EOF
+                {
+                  "attachments": [{
+                    "color": "#D32F2F",
+                    "blocks": [
+                      { "type": "header", "text": { "type": "plain_text", "text": "🚨 SAST Analysis just Failed (Quality Gate/Job FAILED) 🚨" } },
+                      { "type": "section", "fields": [
+                          { "type": "mrkdwn", "text": "*Repo:*\n${REPO}" },
+                          { "type": "mrkdwn", "text": "*Branch:*\n${REF_NAME}" },
+                          { "type": "mrkdwn", "text": "*Actor:*\n${ACTOR}" },
+                          { "type": "mrkdwn", "text": "*Event:*\n${EVENT_NAME}" }
+                      ]},
+                      { "type": "section", "text": { "type": "mrkdwn", "text": "*Run:* <${RUN_URL}|Open execution on GitHub Actions>" } },
+                      { "type": "section", "text": { "type": "mrkdwn", "text": "*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=${SONAR_PROJ}|Go to Project>" } },
+                      { "type": "divider" },
+                      ${PR_BLOCK}
+                    ]
+                  }]
+                }
+            EOF
+            )
+                curl -X POST -H 'Content-type: application/json' --data "$payload" "${SLACK_WEBHOOK_URL}"
 
   notify-email-on-fail:
     needs: [sonarcloud-python, check-qg]
     if: ${{ needs.sonarcloud-python.outputs.job_status != 'success' || needs.check-qg.outputs.qg_status == 'ERROR' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Send email (Outlook/Office 365 SMTP)
+      - name: Send email (Outlook -> Office 365) SMTP
         uses: dawidd6/action-send-mail@v6
         with:
           server_address: ${{ secrets.SMTP_HOST }}
           server_port: ${{ secrets.SMTP_PORT }}
-          secure: true
+          secure: false
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: "[ALERT] SAST Analysis just Failed (Quality Gate/Job FAILED) - ${{ github.repository }}"
@@ -174,7 +174,7 @@ jobs:
           # Optional blind carbon copy recipients:
           #bcc: email@example.com,email@example.com
           body: |
-            <p>SAST Analysis just Failed (Quality Gate or job).</p>
+            <p>🚨 SAST Analysis just Failed (Quality Gate/Job FAILED) 🚨</p>
             
             <h3>Context:</h3>
             <ul>
