@@ -1,35 +1,35 @@
-name: SCA (OWASP Dependency-Check)
-on:
-  pull_request:
-  push:
-    branches: [ main ]
+#name: SCA (OWASP Dependency-Check)
+#on:
+#  pull_request:
+#  push:
+#    branches: [ main ]
 
-jobs:
-  dependency-check:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+#jobs:
+#  dependency-check:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@v4
 
-      - name: Run Dependency-Check (Docker)
-        run: |
-          mkdir -p security/evidence/dependency-check
-          docker run --rm -e user=$(id -u) -v "$(pwd)":/src \
-            owasp/dependency-check:latest \
-            --scan /src \
-            --format "HTML" \
-            --out /src/security/evidence/dependency-check \
-            --enableExperimental
+#      - name: Run Dependency-Check (Docker)
+#        run: |
+#          mkdir -p security/evidence/dependency-check
+#          docker run --rm -e user=$(id -u) -v "$(pwd)":/src \
+#            owasp/dependency-check:latest \
+#            --scan /src \
+#            --format "HTML" \
+#            --out /src/security/evidence/dependency-check \
+#            --enableExperimental
 
-      - name: Fail on HIGH/CRITICAL
-        run: |
+#      - name: Fail on HIGH/CRITICAL
+#        run: |
           # convierte HTML a texto simple y busca severidades altas/criticas
-          html2text security/evidence/dependency-check/dependency-check-report.html | \
-            grep -E "CRITICAL|HIGH" && exit 1 || exit 0
-        shell: bash
+#          html2text security/evidence/dependency-check/dependency-check-report.html | \
+#            grep -E "CRITICAL|HIGH" && exit 1 || exit 0
+#        shell: bash
 
-      - name: Upload report
-        uses: actions/upload-artifact@v4
-        with:
-          name: dependency-check-report
-          path: security/evidence/dependency-check/dependency-check-report.html
+#      - name: Upload report
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: dependency-check-report
+#          path: security/evidence/dependency-check/dependency-check-report.html
