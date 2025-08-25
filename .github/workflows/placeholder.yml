@@ -4,4 +4,4 @@ jobs:
   noop:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Workflows listos para Fase 1 de CI"
+      - run: echo "Workflows ready for first phase of CI"

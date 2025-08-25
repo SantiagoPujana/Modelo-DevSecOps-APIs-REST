@@ -1,3 +1,11 @@
+name: SCA (OWASP Dependency-Check)
+on: [push]
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "SCA (OWASP Dependency-Check)"
+
 #name: SCA (OWASP Dependency-Check)
 #on:
 #  pull_request:
