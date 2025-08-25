@@ -24,14 +24,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('api-auth/requirements.txt', 'api-auth/requirements-dev.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('api-auth/requirements.txt', 'api-auth/test/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
       - name: Install dependencies
         run: |
+          if [ -f api-auth/test/requirements.txt ]; then pip install -r api-auth/test/requirements.txt; fi
           if [ -f api-auth/requirements.txt ]; then pip install -r api-auth/requirements.txt; fi
-          if [ -f api-auth/requirements-dev.txt ]; then pip install -r api-auth/requirements-dev.txt; fi
 
       - name: Run tests with coverage (pytest-cov)
         working-directory: api-auth
