@@ -6,7 +6,7 @@ import os, subprocess, hashlib, pickle, requests
 app = FastAPI()
 
 # 🔑 1) Credencial/secreto hardcodeado (Hardcoded secret)
-SECRET_KEY = "supersecret123"  # Noncompliant: hardcoded secret in code
+SECRET_KEY = "supersecret1234"  # Noncompliant: hardcoded secret in code
 
 # DB inicial para el ejemplo
 def get_conn():
