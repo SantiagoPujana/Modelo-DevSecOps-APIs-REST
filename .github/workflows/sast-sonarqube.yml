@@ -58,7 +58,3 @@ jobs:
           args: >
             -Dsonar.organization=${{ secrets.SONAR_ORG }}
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
-            -Dsonar.sources=api-auth
-            -Dsonar.tests=api-auth/tests
-            -Dsonar.python.coverage.reportPaths=api-auth/coverage.xml
-            -Dsonar.python.version=3.11
