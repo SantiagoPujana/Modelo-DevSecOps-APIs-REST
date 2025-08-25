@@ -13,7 +13,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # descarga todo el historial de commits
+          fetch-depth: 0 # Download all commits
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -45,14 +45,14 @@ jobs:
           name: coverage-xml
           path: api-auth/coverage.xml
 
-      # SonarCloud necesita JDK para el scanner
+      # SonarCloud needs JDK to scan works
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      # Escaneo en SonarCloud
+      # Scan on SonarCloud
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v5
         env:
@@ -183,7 +183,7 @@ notify-email-on-fail:
 
           <h3>SonarCloud</h3>
           <ul>
-            <li><b>Proyecto:</b> <a href="https://sonarcloud.io/project/overview?id=${{ secrets.SONAR_PROJECT_KEY }}">overview</a></li>
+            <li><b>Project:</b> <a href="https://sonarcloud.io/project/overview?id=${{ secrets.SONAR_PROJECT_KEY }}">Overview</a></li>
             ${{ github.event_name == 'pull_request' && format('<li><b>Análisis del PR:</b> <a href="https://sonarcloud.io/project/analysis?id={0}&pullRequest={1}">check on SonarCloud</a></li>', secrets.SONAR_PROJECT_KEY, github.event.pull_request.number) || '' }}
           </ul>
           <p>Please check Issues/Vulnerabilities/Hotspots on SonarCloud.</p>
