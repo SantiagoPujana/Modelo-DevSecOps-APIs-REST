@@ -148,9 +148,6 @@ jobs:
                 
             payload="${payload//'%'/'%25'}"; payload="${payload//$'\n'/'%0A'}"; payload="${payload//$'\r'/'%0D'}"
             echo "payload=$payload" >> $GITHUB_OUTPUT
-
-            #curl -X POST -H 'Content-type: application/json' --data "$payload" "${SLACK_WEBHOOK_URL}"
-
       outputs:
         slack_payload: ${{ steps.msg.outputs.payload }}
 
@@ -164,7 +161,7 @@ jobs:
       SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
       MAIL_TO: ${{ secrets.MAIL_TO }}
-      SONAR_PROJ: ${{ secrets.SONAR_PROJECT_KEY }}
+      SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
     with:
       status: ${{ needs.sast.job_status }}
       only_if_failed: true
@@ -191,11 +188,11 @@ jobs:
             </p>
 
             <p><b>SonarCloud Project:</b> 
-              <a href="https://sonarcloud.io/project/overview?id=${SONAR_PROJ}}">Overview</a>
+              <a href="https://sonarcloud.io/project/overview?id=${SONAR_PROJECT_KEY}}">Overview</a>
             </p>
 
             <p><b>SonarCloud (PR):</b> 
-              <a href="https://sonarcloud.io/dashboard?id=${SONAR_PROJ}&pullRequest=${{ github.event.pull_request.number }}">
+              <a href="https://sonarcloud.io/dashboard?id=${SONAR_PROJECT_KEY}&pullRequest=${{ github.event.pull_request.number }}">
                 Check PR on SonarCloud
               </a>
             </p>
