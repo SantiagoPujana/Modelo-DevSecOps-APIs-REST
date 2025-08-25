@@ -99,7 +99,7 @@ jobs:
               PR_BLOCK=$(cat <<EOF
                 {
                   "type": "section",
-                  "text": { "type": "mrkdwn", "text": "*Pull Request:* <PR #${PR_NUM} - ${PR_TITLE}>" }
+                  "text": { "type": "mrkdwn", "text": "*Pull Request:* PR #${PR_NUM} - ${PR_TITLE}" }
                 },
                 {
                   "type": "actions",
@@ -166,7 +166,7 @@ jobs:
           #cc: email@example.com,email@example.com
           # Optional blind carbon copy recipients:
           #bcc: email@example.com,email@example.com
-          body: |
+          html_body: |
             <p>🚨 SAST Analysis just Failed (Quality Gate/Job FAILED) 🚨</p>
             
             <h3>Context:</h3>
@@ -177,8 +177,7 @@ jobs:
               <li><b>Run:</b> <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">check on GitHub Actions</a></li>
             </ul>
 
-            ${{ github.event_name == 'pull_request' && format('<h3>Pull Request</h3><ul><li><b>PR #:</b> {0}</li><li><b>Título:</b> {1}</li><li><b>URL:</b> <a href="{2}">{2}</a></li></ul>', github.event.pull_request.number, github.event.pull_request.title, github.event.pull_request.html_url) || '' }}
-
+            ${{ github.event_name == 'pull_request' && format('<h3>Pull Request</h3><ul><li><b>PR #:</b> {0}</li><li><b>Title:</b> {1}</li><li><b>URL:</b> <a href="{2}">{2}</a></li></ul>', github.event.pull_request.number, github.event.pull_request.title, github.event.pull_request.html_url) || '' }}
             ${{ github.event_name != 'pull_request' && format('<h3>Commit</h3><ul><li><b>SHA:</b> {0}</li><li><b>URL:</b> <a href="{1}/{2}/commit/{0}">{1}/{2}/commit/{0}</a></li></ul>', github.sha, github.server_url, github.repository) || '' }}
 
             <h3>SonarCloud</h3>
