@@ -135,13 +135,9 @@ jobs:
                     "blocks": [
                       { "type": "header", "text": { "type": "plain_text", "text": "🚨 SAST Analysis just Failed (Quality Gate/Job FAILED) 🚨" } },
                       { "type": "section", "fields": [
-                          { "type": "mrkdwn", "text": "*Repo:*\n${REPO}" },
-                          { "type": "mrkdwn", "text": "*Branch:*\n${REF_NAME}" },
-                          { "type": "mrkdwn", "text": "*Actor:*\n${ACTOR}" },
-                          { "type": "mrkdwn", "text": "*Event:*\n${EVENT_NAME}" }
+                          { "type": "mrkdwn", "text": "Repo:* ${REPO}\n*Branch:* ${REF_NAME}\n*Actor:* ${ACTOR}\n*Event:* ${EVENT_NAME}" }
                       ]},
-                      { "type": "section", "text": { "type": "mrkdwn", "text": "*Run:* <${RUN_URL}|Open execution on GitHub Actions>" } },
-                      { "type": "section", "text": { "type": "mrkdwn", "text": "*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=${SONAR_PROJ}|Go to Project>" } },
+                      { "type": "section", "text": { "type": "mrkdwn", "text": "*Run:* <${RUN_URL}|Open execution on GitHub Actions>\n*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=${SONAR_PROJ}|Go to Project>" } },
                       { "type": "divider" },
                       ${PR_BLOCK}
                     ]
