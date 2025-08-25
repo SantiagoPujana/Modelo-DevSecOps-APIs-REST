@@ -95,7 +95,7 @@ jobs:
             PR_TITLE: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || '' }}
           run: |
             if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$PR_NUM" ]; then
-              SONAR_PR_URL="https://sonarcloud.io/project/analysis?id=${SONAR_PROJ}&pullRequest=${PR_NUM}"
+              SONAR_PR_URL="https://sonarcloud.io/dashboard?id=${SONAR_PROJ}&pullRequest=${PR_NUM}"
               PR_BLOCK=$(cat <<EOF
                 {
                   "type": "section",
@@ -167,22 +167,31 @@ jobs:
           # Optional blind carbon copy recipients:
           #bcc: email@example.com,email@example.com
           html_body: |
-            <p>🚨 SAST Analysis just Failed (Quality Gate/Job FAILED) 🚨</p>
+            <h2>🚨 SAST Analysis just FAILED (Quality Gate/Job) 🚨</h2>
             
-            <h3>Context:</h3>
-            <ul>
-              <li><b>Repo:</b> ${{ github.repository }}</li>
-              <li><b>Event:</b> ${{ github.event_name }}</li>
-              <li><b>Actor:</b> ${{ github.actor }}</li>
-              <li><b>Run:</b> <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">check on GitHub Actions</a></li>
-            </ul>
+            <table border="0" cellpadding="5">
+              <tr><td><b>Repo:</b></td><td>${{ github.repository }}</td></tr>
+              <tr><td><b>Branch:</b></td><td>${{ github.ref_name }}</td></tr>
+              <tr><td><b>Actor:</b></td><td>${{ github.actor }}</td></tr>
+              <tr><td><b>Event:</b></td><td>${{ github.event_name }}</td></tr>
+            </table>
 
-            ${{ github.event_name == 'pull_request' && format('<h3>Pull Request</h3><ul><li><b>PR #:</b> {0}</li><li><b>Title:</b> {1}</li><li><b>URL:</b> <a href="{2}">{2}</a></li></ul>', github.event.pull_request.number, github.event.pull_request.title, github.event.pull_request.html_url) || '' }}
-            ${{ github.event_name != 'pull_request' && format('<h3>Commit</h3><ul><li><b>SHA:</b> {0}</li><li><b>URL:</b> <a href="{1}/{2}/commit/{0}">{1}/{2}/commit/{0}</a></li></ul>', github.sha, github.server_url, github.repository) || '' }}
+            <p><b>Run:</b> <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">Open execution in GitHub Actions</a></p>
 
-            <h3>SonarCloud</h3>
-            <ul>
-              <li><b>Project:</b> <a href="https://sonarcloud.io/project/overview?id=${{ secrets.SONAR_PROJECT_KEY }}">Overview</a></li>
-              ${{ github.event_name == 'pull_request' && format('<li><b>Análisis del PR:</b> <a href="https://sonarcloud.io/project/analysis?id={0}&pullRequest={1}">check on SonarCloud</a></li>', secrets.SONAR_PROJECT_KEY, github.event.pull_request.number) || '' }}
-            </ul>
-            <p>Please check Issues/Vulnerabilities/Hotspots on SonarCloud.</p>
+            <p><b>Pull Request:</b> 
+              <a href="${{ github.event.pull_request.html_url }}">
+                PR #${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}
+              </a>
+            </p>
+
+            <p><b>SonarCloud Project:</b> 
+              <a href="https://sonarcloud.io/project/overview?id=${{ secrets.SONAR_PROJECT_KEY }}">Overview</a>
+            </p>
+
+            <p><b>SonarCloud (PR):</b> 
+              <a href="https://sonarcloud.io/dashboard?id=${{ secrets.SONAR_PROJECT_KEY }}&pullRequest=${{ github.event.pull_request.number }}">
+                Check PR on SonarCloud
+              </a>
+            </p>
+
+            <p>👉 Please Check Issues/Vulnerabilities/Hotspots on SonarCloud.</p>
