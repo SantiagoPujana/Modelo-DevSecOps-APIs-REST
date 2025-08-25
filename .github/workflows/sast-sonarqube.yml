@@ -36,6 +36,7 @@ jobs:
       - name: Run tests with coverage (pytest-cov)
         working-directory: api-auth
         run: |
+          export PYTHONPATH=${PWD}
           pytest --maxfail=1 -q --cov=. --cov-report=xml:coverage.xml
 
       - name: Upload coverage artifact
