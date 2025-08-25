@@ -77,7 +77,7 @@ jobs:
 
   compose-slack-alert-on-fail:
     needs: [sast]
-    if: ${{ needs.sast.result != 'success' || needs.sast.outputs.qg_status == 'ERROR' }}
+    if: ${{ needs.sast.outputs.job_status != 'success' || needs.sast.outputs.qg_status == 'ERROR' }}
     runs-on: ubuntu-latest
     steps:
       - name: Notify Slack (Quality Gate/Job failed)
@@ -160,7 +160,7 @@ jobs:
       MAIL_TO: ${{ secrets.MAIL_TO }}
       SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
     with:
-      status: ${{ needs.sast.result }}
+      status: ${{ needs.sast.outputs.job_status }}
       only_if_failed: true
       send_slack: true
       slack_payload: ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}
