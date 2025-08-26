@@ -74,7 +74,6 @@ jobs:
       - name: Capture QG status to step output
         id: capture_qg
         run: |
-          # Toma el output del paso anterior; si viene vacío, marca UNKNOWN
           QG="${{ steps.qg.outputs.quality-gate-status }}"
           if [ -z "$QG" ]; then QG="UNKNOWN"; fi
           echo "qg_status=$QG" >> "$GITHUB_OUTPUT"
@@ -94,33 +93,20 @@ jobs:
           echo "needs.sast.outputs.job_status= ${{ needs.sast.outputs.job_status }}"
           echo "needs.sast.outputs.qg_status = ${{ needs.sast.outputs.qg_status }}"
 
-      - name: Dump contexts (github / needs / job)
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-          NEEDS_CONTEXT:  ${{ toJson(needs) }}
-          JOB_CONTEXT:    ${{ toJson(job) }}
-        run: |
-          echo "---- github ----"
-          echo "$GITHUB_CONTEXT"
-          echo "---- needs ----"
-          echo "$NEEDS_CONTEXT"
-          echo "---- job ----"
-          echo "$JOB_CONTEXT"
-
   decide-alert:
     needs: [sast]
     runs-on: ubuntu-latest
     steps:
       - id: out
         run: |
-          FAIL=$([ "${{ needs.sast.outputs.job_status }}" != "success" ] || [ "${{ needs.sast.outputs.qg_status }}" = "FAILED" ] && echo true || echo false)
+          FAIL=$([ "${{ needs.sast.outputs.job_status }}" != "success" ] || [ "${{ needs.sast.outputs.qg_status }}" = "FAILED" ] && echo "true" || echo "false")
           echo "should_alert=$FAIL" >> "$GITHUB_OUTPUT"
     outputs:
       should_alert: ${{ steps.out.outputs.should_alert }}
 
   compose-slack-alert-on-fail:
     needs: [decide-alert]
-    if: ${{ needs.decide-alert.outputs.should_alert == true }}
+    if: ${{ needs.decide-alert.outputs.should_alert == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Notify Slack (Quality Gate/Job failed)

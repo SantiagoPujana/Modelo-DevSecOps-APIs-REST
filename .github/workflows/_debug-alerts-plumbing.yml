@@ -1,0 +1,48 @@
+name: _debug alerts plumbing
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-payload:
+    runs-on: ubuntu-latest
+    outputs:
+      slack_payload: ${{ steps.mk.outputs.slack_payload }}
+      email_body:   ${{ steps.mk.outputs.email_body }}
+    steps:
+      - id: mk
+        run: |
+          payload='{"text":"hello from payload 👋"}'
+          {
+            echo 'slack_payload<<EOF'
+            echo "$payload"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+          body="<h3>hello from email 👋</h3>"
+          {
+            echo 'email_body<<EOF'
+            echo "$body"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+          echo "---- dump ----"; cat "$GITHUB_OUTPUT"
+
+  sender:
+    needs: [build-payload]
+    uses: ./.github/workflows/alerts-send.yml
+    with:
+      status: failure                # fuerza envío
+      only_if_failed: true
+      send_slack: true
+      slack_payload: ${{ needs.build-payload.outputs.slack_payload }}
+      send_email: false              # pon true si ya tienes SMTP listo
+      email_subject: "[TEST] plumbing"
+      email_body: ${{ needs.build-payload.outputs.email_body }}
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      MAIL_TO: ${{ secrets.MAIL_TO }}
