@@ -182,7 +182,6 @@ jobs:
       SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
       MAIL_TO: ${{ secrets.MAIL_TO }}
-      SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
     with:
       status: ${{ (needs.sast.result != 'success' || needs.sast.outputs.qg_status == 'FAILED') && 'failure' || 'success' }}
       only_if_failed: true
@@ -209,11 +208,11 @@ jobs:
             </p>
 
             <p><b>SonarCloud Project:</b> 
-              <a href="https://sonarcloud.io/project/overview?id=${SONAR_PROJECT_KEY}}">Overview</a>
+              <a href="https://sonarcloud.io/project/overview?id=${{ secrets.SONAR_PROJECT_KEY }}">Overview</a>
             </p>
 
             <p><b>SonarCloud (PR):</b> 
-              <a href="https://sonarcloud.io/dashboard?id=${SONAR_PROJECT_KEY}&pullRequest=${{ github.event.pull_request.number }}">
+              <a href="https://sonarcloud.io/dashboard?id=${{ secrets.SONAR_PROJECT_KEY }}&pullRequest=${{ github.event.pull_request.number }}">
                 Check PR on SonarCloud
               </a>
             </p>
