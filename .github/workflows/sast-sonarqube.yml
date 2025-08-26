@@ -189,7 +189,7 @@ jobs:
       send_slack: true
       slack_payload: ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}
       send_email: true
-      email_subject: "[ALERT] SAST FAILED - ${{ github.repository }}"
+      email_subject: "[ALERT] SAST Analysis just Failed (Quality Gate/Job FAILED) - ${{ github.repository }}"
       email_body: |
         <h2>🚨 SAST Analysis just FAILED (Quality Gate/Job) 🚨</h2>
             

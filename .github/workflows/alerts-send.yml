@@ -76,12 +76,12 @@ jobs:
         with:
           server_address: ${{ secrets.SMTP_HOST }}
           server_port: ${{ secrets.SMTP_PORT }}
-          secure: false                # STARTTLS in port 587
+          secure: true
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: ${{ inputs.email_subject }}
           to: ${{ secrets.MAIL_TO }}
-          from: "${{ secrets.SMTP_USERNAME }}"
+          from: "DevSecOps Bot ${{ secrets.SMTP_USERNAME }}"
           html_body: ${{ inputs.email_body }}
           # Optional unsigned/invalid certificates allowance:
           #ignore_cert: true
