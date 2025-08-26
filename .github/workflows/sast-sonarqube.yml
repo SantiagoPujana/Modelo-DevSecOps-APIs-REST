@@ -259,9 +259,9 @@ jobs:
     steps:
       - name: Echo needs.* values
         run: |
-          echo "needs.decide-alert.outputs.should_alert = ${{ needs.decide-alert.outputs.should_alert }}"
-          echo "needs.compose-slack-alert-on-fail.outputs.slack_payload = ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}"
-          echo "needs.compose-email-alert-on-fail.outputs.email_body = ${{ needs.compose-email-alert-on-fail.outputs.email_body }}"
+          echo "needs.decide-alert.outputs.should_alert = ${{ needs['decide-alert'].outputs.should_alert }}"
+          echo "needs.compose-slack-alert-on-fail.outputs.slack_payload = ${{ needs['compose-slack-alert-on-fail'].outputs.slack_payload }}"
+          echo "needs.compose-email-alert-on-fail.outputs.email_body = ${{ needs['compose-email-alert-on-fail'].outputs.email_body }}"
 
   alerts:
     needs: [compose-slack-alert-on-fail, compose-email-alert-on-fail, sast]
@@ -279,9 +279,9 @@ jobs:
 
       # Slack Alert
       send_slack: true
-      slack_payload: ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}
+      slack_payload: ${{ needs['compose-slack-alert-on-fail'].outputs.slack_payload }}
 
       # Email Alert
       send_email: true
       email_subject: "[ALERT] SAST Analysis just Failed (Quality Gate/Job FAILED) - ${{ github.repository }}"
-      email_body: ${{ needs.compose-email-alert-on-fail.outputs.email_body }}
+      email_body: ${{ needs['compose-email-alert-on-fail'].outputs.email_body }}
