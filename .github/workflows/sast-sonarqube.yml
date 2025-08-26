@@ -123,7 +123,7 @@ jobs:
           PR_NUM: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           PR_TITLE: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || '' }}
         run: |
-          payload=$(jq -c -n \
+          payload=$(jq tostring -c -n \
             --arg repo "$REPO" \
             --arg ref "$REF_NAME" \
             --arg actor "$ACTOR" \
@@ -164,7 +164,7 @@ jobs:
 
           echo "slack_payload=$payload" >> "$GITHUB_OUTPUT"
 
-          echo "slack_payload=yes" >> "$GITHUB_OUTPUT"
+          #echo "slack_payload=yes" >> "$GITHUB_OUTPUT"
 
           cat "$GITHUB_OUTPUT"
     outputs:
