@@ -102,13 +102,13 @@ jobs:
   decide-alert:
     needs: [sast]
     runs-on: ubuntu-latest
-    outputs:
-      should_alert: ${{ steps.out.outputs.should_alert }}
     steps:
       - id: out
         run: |
           FAIL=$([ "${{ needs.sast.outputs.job_status }}" != "success" ] || [ "${{ needs.sast.outputs.qg_status }}" = "FAILED" ] && echo true || echo false)
           echo "should_alert=$FAIL" >> "$GITHUB_OUTPUT"
+    outputs:
+      should_alert: ${{ steps.out.outputs.should_alert }}
 
   compose-slack-alert-on-fail:
     needs: [decide-alert]
@@ -253,12 +253,13 @@ jobs:
       email_body: ${{ steps.build.outputs.email_body }}
 
   debug-payloads:
-    needs: [compose-slack-alert-on-fail, compose-email-alert-on-fail]
+    needs: [decide-alert, compose-slack-alert-on-fail, compose-email-alert-on-fail]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Echo needs.* values
         run: |
+          echo "needs.decide-alert.outputs.should_alert = ${{ needs.decide-alert.outputs.should_alert }}"
           echo "needs.compose-slack-alert-on-fail.outputs.slack_payload = ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}"
           echo "needs.compose-email-alert-on-fail.outputs.email_body = ${{ needs.compose-email-alert-on-fail.outputs.email_body }}"
 
