@@ -123,8 +123,8 @@ jobs:
     if: ${{ needs.decide-alert.outputs.should_alert == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Notify Slack (Quality Gate/Job failed)
-        id: msg
+      #- name: Notify Slack (Quality Gate/Job failed)
+      - id: msg
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           REPO: ${{ github.repository }}
