@@ -73,7 +73,7 @@ jobs:
 
     outputs:
       job_status: ${{ job.status }}
-      qg_status: ${{ steps.qg.outputs.quality-gate-status }} # 'OK' | 'FAILED'
+      qg_status: ${{ steps.qg.outputs.quality-gate-status }} # 'PASSED' | 'FAILED'
 
   debug-status:
     needs: [sast]
@@ -174,7 +174,7 @@ jobs:
 
   compose-email-alert-on-fail:
     needs: [sast]
-    if: ${{ needs.sast.result != 'success' || needs.sast.outputs.qg_status == 'FAILED' }}
+    if: ${{ needs.sast.job_status != 'success' || needs.sast.outputs.qg_status == 'FAILED' }}
     runs-on: ubuntu-latest
     steps:
       - name: Build email HTML
@@ -235,6 +235,29 @@ jobs:
     outputs:
       email_body: ${{ steps.build.outputs.body }}
 
+  debug-payloads:
+    needs: [compose-slack-alert-on-fail, compose-email-alert-on-fail]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo needs.* values
+        run: |
+          echo "needs.compose-slack-alert-on-fail.outputs.slack_payload= ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}"
+          echo "needs.compose-email-alert-on-fail.outputs.email_body = ${{ needs.compose-email-alert-on-fail.outputs.email_body }}"
+
+      - name: Dump contexts (github / needs / job)
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+          NEEDS_CONTEXT:  ${{ toJson(needs) }}
+          JOB_CONTEXT:    ${{ toJson(job) }}
+        run: |
+          echo "---- github ----"
+          echo "$GITHUB_CONTEXT"
+          echo "---- needs ----"
+          echo "$NEEDS_CONTEXT"
+          echo "---- job ----"
+          echo "$JOB_CONTEXT"
+
   alerts:
     needs: [compose-slack-alert-on-fail, compose-email-alert-on-fail, sast]
     uses: ./.github/workflows/alerts-send.yml
@@ -246,7 +269,7 @@ jobs:
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
       MAIL_TO: ${{ secrets.MAIL_TO }}
     with:
-      status: ${{ (needs.sast.result != 'success' || needs.sast.outputs.qg_status == 'FAILED') && 'failure' || 'success' }}
+      status: ${{ (needs.sast.job_status != 'success' || needs.sast.outputs.qg_status == 'FAILED') && 'failure' || 'success' }}
       only_if_failed: true
 
       # Slack Alert
