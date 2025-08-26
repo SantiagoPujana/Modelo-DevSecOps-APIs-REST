@@ -80,7 +80,7 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Echo needs.* valores
+      - name: Echo needs.* values
         run: |
           echo "needs.sast.result            = ${{ needs.sast.result }}"
           echo "needs.sast.outputs.job_status= ${{ needs.sast.outputs.job_status }}"
@@ -99,9 +99,20 @@ jobs:
           echo "---- job ----"
           echo "$JOB_CONTEXT"
 
-  compose-slack-alert-on-fail:
+  decide-alert:
     needs: [sast]
-    if: ${{ needs.sast.outputs.job_status != 'success' || needs.sast.outputs.qg_status == 'FAILED' }}
+    runs-on: ubuntu-latest
+    outputs:
+      should_alert: ${{ steps.out.outputs.should_alert }}
+    steps:
+      - id: out
+        run: |
+          FAIL=$([ "${{ needs.sast.outputs.job_status }}" != "success" ] || [ "${{ needs.sast.outputs.qg_status }}" = "FAILED" ] && echo true || echo false)
+          echo "should_alert=$FAIL" >> "$GITHUB_OUTPUT"
+
+  compose-slack-alert-on-fail:
+    needs: [decide-alert]
+    if: ${{ needs.decide-alert.outputs.should_alert == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Notify Slack (Quality Gate/Job failed)
@@ -167,14 +178,17 @@ jobs:
           EOF
           )
               
-          payload="${payload//'%'/'%25'}"; payload="${payload//$'\n'/'%0A'}"; payload="${payload//$'\r'/'%0D'}"
-          echo "payload=$payload" >> $GITHUB_OUTPUT
+          payload="${payload//'%'/'%25'}"
+          payload="${payload//$'\n'/'%0A'}"
+          payload="${payload//$'\r'/'%0D'}"
+
+          echo "slack_payload=$payload" >> $GITHUB_OUTPUT
     outputs:
-      slack_payload: ${{ steps.msg.outputs.payload }}
+      slack_payload: ${{ steps.msg.outputs.slack_payload }}
 
   compose-email-alert-on-fail:
-    needs: [sast]
-    if: ${{ needs.sast.job_status != 'success' || needs.sast.outputs.qg_status == 'FAILED' }}
+    needs: [decide-alert]
+    if: ${{ needs.decide-alert.outputs.should_alert == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Build email HTML
@@ -192,12 +206,12 @@ jobs:
         run: |
           if [ -n "$PR_NUM" ]; then
             PR_BLOCK="<p><b>Pull Request:</b> <a href=\"$PR_URL\">PR #$PR_NUM - $PR_TITLE</a></p>
-          <p><b>SonarCloud (PR):</b> <a href=\"https://sonarcloud.io/project/analysis?id=$SONAR_PROJECT_KEY&pullRequest=$PR_NUM\">Open PR Analysis</a></p>"
-                  else
-                    PR_BLOCK=""
-                  fi
+            <p><b>SonarCloud (PR):</b> <a href=\"https://sonarcloud.io/project/analysis?id=$SONAR_PROJECT_KEY&pullRequest=$PR_NUM\">Open PR Analysis</a></p>"
+          else
+            PR_BLOCK=""
+          fi
 
-                  body=$(cat <<EOF
+          body=$(cat <<EOF
             <h2>🚨 SAST Analysis just FAILED (Quality Gate/Job) 🚨</h2>
             
             <table border="0" cellpadding="5">
@@ -229,11 +243,14 @@ jobs:
           EOF
           )
 
-          body="${body//'%'/'%25'}"; body="${body//$'\n'/'%0A'}"; body="${body//$'\r'/'%0D'}"
-          echo "body=$body" >> "$GITHUB_OUTPUT"
+          body="${body//'%'/'%25'}"
+          body="${body//$'\n'/'%0A'}"
+          body="${body//$'\r'/'%0D'}"
+
+          echo "email_body=$body" >> "$GITHUB_OUTPUT"
 
     outputs:
-      email_body: ${{ steps.build.outputs.body }}
+      email_body: ${{ steps.build.outputs.email_body }}
 
   debug-payloads:
     needs: [compose-slack-alert-on-fail, compose-email-alert-on-fail]
@@ -242,21 +259,8 @@ jobs:
     steps:
       - name: Echo needs.* values
         run: |
-          echo "needs.compose-slack-alert-on-fail.outputs.slack_payload= ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}"
+          echo "needs.compose-slack-alert-on-fail.outputs.slack_payload = ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}"
           echo "needs.compose-email-alert-on-fail.outputs.email_body = ${{ needs.compose-email-alert-on-fail.outputs.email_body }}"
-
-      - name: Dump contexts (github / needs / job)
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-          NEEDS_CONTEXT:  ${{ toJson(needs) }}
-          JOB_CONTEXT:    ${{ toJson(job) }}
-        run: |
-          echo "---- github ----"
-          echo "$GITHUB_CONTEXT"
-          echo "---- needs ----"
-          echo "$NEEDS_CONTEXT"
-          echo "---- job ----"
-          echo "$JOB_CONTEXT"
 
   alerts:
     needs: [compose-slack-alert-on-fail, compose-email-alert-on-fail, sast]
@@ -269,7 +273,7 @@ jobs:
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
       MAIL_TO: ${{ secrets.MAIL_TO }}
     with:
-      status: ${{ (needs.sast.job_status != 'success' || needs.sast.outputs.qg_status == 'FAILED') && 'failure' || 'success' }}
+      status: ${{ (needs.sast.outputs.job_status != 'success' || needs.sast.outputs.qg_status == 'FAILED') && 'failure' || 'success' }}
       only_if_failed: true
 
       # Slack Alert

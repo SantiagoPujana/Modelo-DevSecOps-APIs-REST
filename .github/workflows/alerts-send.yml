@@ -87,3 +87,13 @@ jobs:
           #cc: email@example.com,email@example.com
           # Optional blind carbon copy recipients:
           #bcc: email@example.com,email@example.com
+
+      - name: Debug inputs
+        run: |
+          echo "status=${{ inputs.status }}"
+          echo "only_if_failed=${{ inputs.only_if_failed }}"
+          echo "send_slack=${{ inputs.send_slack }}"
+          echo "send_email=${{ inputs.send_email }}"
+          echo "slack_payload_len=$(echo -n '${{ inputs.slack_payload }}' | wc -c)"
+          echo "email_subject_empty=$([ -z '${{ inputs.email_subject }}' ] && echo yes || echo no)"
+          echo "email_body_len=$(echo -n '${{ inputs.email_body }}' | wc -c)"
