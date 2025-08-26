@@ -181,6 +181,8 @@ jobs:
             echo "$payload"
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
+
+          cat "$GITHUB_OUTPUT"
     outputs:
       slack_payload: ${{ steps.msg.outputs.slack_payload }}
 
