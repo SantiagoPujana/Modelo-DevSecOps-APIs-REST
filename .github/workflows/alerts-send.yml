@@ -46,8 +46,6 @@ on:
         required: false
       MAIL_TO:
         required: false
-      SONAR_PROJECT_KEY:
-        required: false
 
 jobs:
   send:
