@@ -162,13 +162,11 @@ jobs:
               }]
             }')
 
-          echo "slack_payload=$payload" >> "$GITHUB_OUTPUT"
-
-          cat "$GITHUB_OUTPUT"
-
-          payload={"attachments":[{"color":"#D32F2F","blocks":[{"type":"header","text":{"type":"plain_text","text":"🚨 SAST Analysis just FAILED (Quality Gate/Job) 🚨"}},{"type":"section","text":{"type":"mrkdwn","text":"*Repo:* SantiagoPujana/Modelo-DevSecOps-APIs-REST"}},{"type":"context","elements":[{"type":"mrkdwn","text":"*Branch:* 3/merge"},{"type":"mrkdwn","text":"*Actor:* SantiagoPujana"},{"type":"mrkdwn","text":"*Event:* pull_request"}]},{"type":"section","text":{"type":"mrkdwn","text":"*Run:* <https://github.com/SantiagoPujana/Modelo-DevSecOps-APIs-REST/actions/runs/17246874026|Open in GitHub Actions>\n*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=***|Open>"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"*Pull Request:* <https://github.com/SantiagoPujana/Modelo-DevSecOps-APIs-REST/pull/3|PR #3 - set alerts v2>"}},{"type":"actions","elements":[{"type":"button","text":{"type":"plain_text","text":"Check PR"},"url":"https://github.com/SantiagoPujana/Modelo-DevSecOps-APIs-REST/pull/3"},{"type":"button","text":{"type":"plain_text","text":"SonarCloud (PR)"},"url":"https://sonarcloud.io/project/analysis?id=***&pullRequest=3"},{"type":"button","text":{"type":"plain_text","text":"GitHub Actions"},"url":"https://github.com/SantiagoPujana/Modelo-DevSecOps-APIs-REST/actions/runs/17246874026"}]}]}]}
+          payload = "'${payload}'"
           
-          echo "slack_payload=$payload" >> $GITHUB_OUTPUT
+          echo "payload: $payload"
+
+          echo "slack_payload=$payload" >> "$GITHUB_OUTPUT"
 
           cat "$GITHUB_OUTPUT"
     outputs:
