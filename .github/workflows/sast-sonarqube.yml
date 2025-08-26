@@ -165,6 +165,9 @@ jobs:
           echo "slack_payload=$(echo $payload | jq '. | tostring')" >> "$GITHUB_OUTPUT"
 
           cat "$GITHUB_OUTPUT"
+
+          payload='{"attachments":[{"color":"#D32F2F","blocks":[{"type":"header","text":{"type":"plain_text","text":"🚨 SAST/QG FAILED"}},{"type":"section","text":{"type":"mrkdwn","text":"*Repo:* '${{ github.repository }}'"}}]}]}'
+          echo "slack_payload=$payload" >> $GITHUB_OUTPUT
     outputs:
       slack_payload: ${{ steps.msg.outputs.slack_payload }}
 
