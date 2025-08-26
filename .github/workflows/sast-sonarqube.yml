@@ -144,8 +144,8 @@ jobs:
                   { "type": "button", "text": { "type": "plain_text", "text": "GitHub Actions" }, "url": "${RUN_URL}" }
                 ]
               }
-            EOF
-            )
+          EOF
+          )
           else
             PR_BLOCK=$(cat <<EOF
               {
@@ -159,22 +159,22 @@ jobs:
                   { "type": "button", "text": { "type": "plain_text", "text": "GitHub Actions" }, "url": "${RUN_URL}" }
                 ]
               }
-            EOF
-            )
+          EOF
+          )
           fi
 
-          payload=$(cat <<EOF
-            {
-              "attachments": [{
-                "color": "#D32F2F",
-                "blocks": [
-                  { "type": "header", "text": { "type": "plain_text", "text": "🚨 SAST Analysis just Failed (Quality Gate/Job FAILED) 🚨" } },
-                  { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo:* ${REPO}" } },
-                  { "type": "section", "text": { "type": "mrkdwn", "text": "*Branch:* ${REF_NAME}\n*Actor:* ${ACTOR}\n*Event:* ${EVENT_NAME}" }},
-                  ${PR_BLOCK}
-                ]
-              }]
-            }
+            payload=$(cat <<EOF
+              {
+                "attachments": [{
+                  "color": "#D32F2F",
+                  "blocks": [
+                    { "type": "header", "text": { "type": "plain_text", "text": "🚨 SAST Analysis just Failed (Quality Gate/Job FAILED) 🚨" } },
+                    { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo:* ${REPO}" } },
+                    { "type": "section", "text": { "type": "mrkdwn", "text": "*Branch:* ${REF_NAME}\n*Actor:* ${ACTOR}\n*Event:* ${EVENT_NAME}" }},
+                    ${PR_BLOCK}
+                  ]
+                }]
+              }
           EOF
           )
 
@@ -182,9 +182,11 @@ jobs:
           payload="${payload//$'\n'/'%0A'}"
           payload="${payload//$'\r'/'%0D'}"
 
-          echo "slack_payload=$payload" >> $GITHUB_OUTPUT
+          echo "slack_payload=$payload" >> "$GITHUB_OUTPUT"
+
+          cat $GITHUB_OUTPUT
     outputs:
-      slack_payload2: ${{ steps.msg.outputs.slack_payload }}
+      slack_payload: ${{ steps.msg.outputs.slack_payload }}
 
   compose-email-alert-on-fail:
     needs: [decide-alert]
@@ -248,8 +250,10 @@ jobs:
           body="${body//$'\r'/'%0D'}"
 
           echo "email_body=$body" >> "$GITHUB_OUTPUT"
+
+          cat $GITHUB_OUTPUT
     outputs:
-      email_body2: ${{ steps.build.outputs.email_body }}
+      email_body: ${{ steps.build.outputs.email_body }}
 
   debug-payloads:
     needs: [decide-alert, compose-slack-alert-on-fail, compose-email-alert-on-fail]
@@ -259,8 +263,8 @@ jobs:
       - name: Echo needs.* values
         run: |
           echo "needs.decide-alert.outputs.should_alert = ${{ needs.decide-alert.outputs.should_alert }}"
-          echo "needs.compose-slack-alert-on-fail.outputs.slack_payload2 = ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload2 }}"
-          echo "needs.compose-email-alert-on-fail.outputs.email_body2 = ${{ needs.compose-email-alert-on-fail.outputs.email_body2 }}"
+          echo "needs.compose-slack-alert-on-fail.outputs.slack_payload = ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}"
+          echo "needs.compose-email-alert-on-fail.outputs.email_body = ${{ needs.compose-email-alert-on-fail.outputs.email_body }}"
 
   alerts:
     needs: [compose-slack-alert-on-fail, compose-email-alert-on-fail, sast]
@@ -278,9 +282,9 @@ jobs:
 
       # Slack Alert
       send_slack: true
-      slack_payload: ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload2 }}
+      slack_payload: ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}
 
       # Email Alert
       send_email: true
       email_subject: "[ALERT] SAST Analysis just Failed (Quality Gate/Job FAILED) - ${{ github.repository }}"
-      email_body: ${{ needs.compose-email-alert-on-fail.outputs.email_body2 }}
+      email_body: ${{ needs.compose-email-alert-on-fail.outputs.email_body }}
