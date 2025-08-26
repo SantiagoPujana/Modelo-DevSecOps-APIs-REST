@@ -186,9 +186,9 @@ jobs:
           EOF
           )
 
-          payload="${payload//'%'/'%25'}"
-          payload="${payload//$'\n'/'%0A'}"
-          payload="${payload//$'\r'/'%0D'}"
+          #payload="${payload//'%'/'%25'}"
+          #payload="${payload//$'\n'/'%0A'}"
+          #payload="${payload//$'\r'/'%0D'}"
 
           echo "slack_payload=$payload" >> "$GITHUB_OUTPUT"
     outputs:
@@ -251,9 +251,9 @@ jobs:
           EOF
           )
 
-          body="${body//'%'/'%25'}"
-          body="${body//$'\n'/'%0A'}"
-          body="${body//$'\r'/'%0D'}"
+          #body="${body//'%'/'%25'}"
+          #body="${body//$'\n'/'%0A'}"
+          #body="${body//$'\r'/'%0D'}"
 
           echo "email_body=$body" >> "$GITHUB_OUTPUT"
     outputs:
