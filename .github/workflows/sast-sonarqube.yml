@@ -71,9 +71,17 @@ jobs:
         #with:
         #  scanMetadataReportFile: .scannerwork/report-task.txt # (default)      
 
+      - name: Capture QG status to step output
+        id: capture_qg
+        run: |
+          # Toma el output del paso anterior; si viene vacío, marca UNKNOWN
+          QG="${{ steps.qg.outputs.quality-gate-status }}"
+          if [ -z "$QG" ]; then QG="UNKNOWN"; fi
+          echo "qg_status=$QG" >> "$GITHUB_OUTPUT"
+
     outputs:
       job_status: ${{ job.status }}
-      qg_status: ${{ steps.qg.outputs.quality-gate-status }} # 'PASSED' | 'FAILED'
+      qg_status: ${{ steps.capture_qg.outputs.qg_status }} # 'PASSED' | 'FAILED' | 'UNKNOWN'
 
   debug-status:
     needs: [sast]
@@ -183,8 +191,6 @@ jobs:
           payload="${payload//$'\r'/'%0D'}"
 
           echo "slack_payload=$payload" >> "$GITHUB_OUTPUT"
-
-          cat $GITHUB_OUTPUT
     outputs:
       slack_payload: ${{ steps.msg.outputs.slack_payload }}
 
@@ -250,8 +256,6 @@ jobs:
           body="${body//$'\r'/'%0D'}"
 
           echo "email_body=$body" >> "$GITHUB_OUTPUT"
-
-          cat $GITHUB_OUTPUT
     outputs:
       email_body: ${{ steps.build.outputs.email_body }}
 
@@ -262,9 +266,9 @@ jobs:
     steps:
       - name: Echo needs.* values
         run: |
-          echo "needs.decide-alert.outputs.should_alert = ${{ needs.decide-alert.outputs.should_alert }}"
-          echo "needs.compose-slack-alert-on-fail.outputs.slack_payload = ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}"
-          echo "needs.compose-email-alert-on-fail.outputs.email_body = ${{ needs.compose-email-alert-on-fail.outputs.email_body }}"
+          echo "should_alert         = ${{ needs.decide-alert.outputs.should_alert }}"
+          echo "slack_payload_len    = $(echo -n '${{ needs['compose-slack-alert-on-fail'].outputs.slack_payload }}' | wc -c)"
+          echo "email_body_len       = $(echo -n '${{ needs['compose-email-alert-on-fail'].outputs.email_body }}' | wc -c)"
 
   alerts:
     needs: [compose-slack-alert-on-fail, compose-email-alert-on-fail, sast]
