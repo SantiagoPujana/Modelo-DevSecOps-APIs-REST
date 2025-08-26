@@ -184,7 +184,7 @@ jobs:
       MAIL_TO: ${{ secrets.MAIL_TO }}
       SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
     with:
-      status: ${{ needs.sast.outputs.job_status }}
+      status: ${{ (needs.sast.result != 'success' || needs.sast.outputs.qg_status == 'FAILED') && 'failure' || 'success' }}
       only_if_failed: true
       send_slack: true
       slack_payload: ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}
