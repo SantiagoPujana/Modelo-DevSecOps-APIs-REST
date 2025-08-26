@@ -137,56 +137,50 @@ jobs:
           PR_NUM: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           PR_TITLE: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || '' }}
         run: |
-          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$PR_NUM" ]; then
-            SONAR_PR_URL="https://sonarcloud.io/dashboard?id=${SONAR_PROJ}&pullRequest=${PR_NUM}"
-            PR_BLOCK=$(cat <<EOF
-              {
-                "type": "section",
-                "text": { "type": "mrkdwn", "text": "*Pull Request:* PR #${PR_NUM} - ${PR_TITLE}" }
-              },
-              {
-                "type": "actions",
-                "elements": [
-                  { "type": "button", "text": { "type": "plain_text", "text": "Check PR" }, "url": "${PR_URL}" },
-                  { "type": "button", "text": { "type": "plain_text", "text": "SonarCloud (PR)" }, "url": "${SONAR_PR_URL}" },
-                  { "type": "button", "text": { "type": "plain_text", "text": "GitHub Actions" }, "url": "${RUN_URL}" }
-                ]
-              }
-          EOF
-          )
-          else
-            PR_BLOCK=$(cat <<EOF
-              {
-                "type": "context",
-                "elements": [{ "type": "mrkdwn", "text": "_Event: push (no PR)_" }]
-              },
-              {
-                "type": "actions",
-                "elements": [
-                  { "type": "button", "text": { "type": "plain_text", "text": "SonarCloud (Project)" }, "url": "https://sonarcloud.io/project/overview?id=${SONAR_PROJ}" },
-                  { "type": "button", "text": { "type": "plain_text", "text": "GitHub Actions" }, "url": "${RUN_URL}" }
-                ]
-              }
-          EOF
-          )
-          fi
+          payload=$(jq -n \
+            --arg repo "$REPO" \
+            --arg ref "$REF_NAME" \
+            --arg actor "$ACTOR" \
+            --arg event "$EVENT_NAME" \
+            --arg run "$RUN_URL" \
+            --arg sonar "$SONAR_PROJ" \
+            --arg prurl "$PR_URL" \
+            --arg prnum "$PR_NUM" \
+            --arg prtitle "$PR_TITLE" '
+            {
+              attachments: [{
+                color: "#D32F2F",
+                blocks:
+                  ([
+                    {type:"header", text:{type:"plain_text", text:"🚨 SAST Analysis FAILED (Quality Gate/Job)"}},
+                    {type:"section", text:{type:"mrkdwn", text:"*Repo:* \($repo)"}},
+                    {type:"context", elements:[
+                      {type:"mrkdwn", text:"*Branch:* \($ref)"},
+                      {type:"mrkdwn", text:"*Actor:* \($actor)"},
+                      {type:"mrkdwn", text:"*Event:* \($event)"}]},
+                    {type:"section", text:{type:"mrkdwn",
+                      text:"*Run:* <\($run)|Open in GitHub Actions>\n*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=\($sonar)|Open>" }}
+                  ] +
+                  ( if ($prnum|length) > 0 then
+                      [
+                        {type:"divider"},
+                        {type:"section", text:{type:"mrkdwn", text:"*Pull Request:* <\($prurl)|PR #\($prnum) - \($prtitle)>"}},
+                        {type:"actions", elements:[
+                          {type:"button", text:{type:"plain_text", text:"Ver PR"}, url:$prurl},
+                          {type:"button", text:{type:"plain_text", text:"SonarCloud (PR)"}, url:("https://sonarcloud.io/project/analysis?id=" + $sonar + "&pullRequest=" + $prnum)},
+                          {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
+                        ]}
+                      ]
+                    else [] end )
+                  )
+              }]
+            }')
 
-            payload=$(cat <<EOF
-              {
-                "attachments": [{
-                  "color": "#D32F2F",
-                  "blocks": [
-                    { "type": "header", "text": { "type": "plain_text", "text": "🚨 SAST Analysis just Failed (Quality Gate/Job FAILED) 🚨" } },
-                    { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo:* ${REPO}" } },
-                    { "type": "section", "text": { "type": "mrkdwn", "text": "*Branch:* ${REF_NAME}\n*Actor:* ${ACTOR}\n*Event:* ${EVENT_NAME}" }},
-                    ${PR_BLOCK}
-                  ]
-                }]
-              }
-          EOF
-          )
-
-          echo "slack_payload=$payload" >> "$GITHUB_OUTPUT"
+          {
+            echo 'slack_payload<<EOF'
+            echo "$payload"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
     outputs:
       slack_payload: ${{ steps.msg.outputs.slack_payload }}
 
