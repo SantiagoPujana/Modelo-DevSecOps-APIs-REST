@@ -162,11 +162,15 @@ jobs:
               }]
             }')
           
-          #echo "payload: '$payload'"
+          echo "payload: $payload"
 
-          echo "slack_payload='$payload'" >> "$GITHUB_OUTPUT"
+          val="hola"
+
+          echo "slack_payload=$val" >> "$GITHUB_OUTPUT"
 
           cat "$GITHUB_OUTPUT"
+
+          echo "payload: $payload"
     outputs:
       slack_payload: ${{ steps.msg.outputs.slack_payload }}
 
