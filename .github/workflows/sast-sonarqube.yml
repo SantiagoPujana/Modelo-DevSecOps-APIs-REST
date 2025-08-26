@@ -162,7 +162,7 @@ jobs:
               }]
             }')
 
-          payload = "'${payload}'"
+          payload = $(echo "'${payload}'")
           
           echo "payload: $payload"
 
