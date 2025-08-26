@@ -166,7 +166,7 @@ jobs:
 
           cat "$GITHUB_OUTPUT"
 
-          echo "slack_payload=\"{\"a\":1,\"b\":\"hello\"}\"" >> "$GITHUB_OUTPUT"
+          echo 'slack_payload={"a":1,"b":"hello"}' >> "$GITHUB_OUTPUT"
 
           cat "$GITHUB_OUTPUT"
     outputs:
