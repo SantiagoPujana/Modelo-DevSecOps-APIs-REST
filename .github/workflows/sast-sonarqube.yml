@@ -186,10 +186,6 @@ jobs:
           EOF
           )
 
-          #payload="${payload//'%'/'%25'}"
-          #payload="${payload//$'\n'/'%0A'}"
-          #payload="${payload//$'\r'/'%0D'}"
-
           echo "slack_payload=$payload" >> "$GITHUB_OUTPUT"
     outputs:
       slack_payload: ${{ steps.msg.outputs.slack_payload }}
@@ -250,10 +246,6 @@ jobs:
             <p>👉 Please Check Issues/Vulnerabilities/Hotspots on SonarCloud.</p>
           EOF
           )
-
-          #body="${body//'%'/'%25'}"
-          #body="${body//$'\n'/'%0A'}"
-          #body="${body//$'\r'/'%0D'}"
 
           echo "email_body=$body" >> "$GITHUB_OUTPUT"
     outputs:
