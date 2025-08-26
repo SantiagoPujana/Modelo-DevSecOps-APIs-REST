@@ -144,49 +144,47 @@ jobs:
                   { "type": "button", "text": { "type": "plain_text", "text": "GitHub Actions" }, "url": "${RUN_URL}" }
                 ]
               }
-          EOF
-          )
-              else
-                PR_BLOCK=$(cat <<EOF
-                  {
-                    "type": "context",
-                    "elements": [{ "type": "mrkdwn", "text": "_Event: push (no PR)_" }]
-                  },
-                  {
-                    "type": "actions",
-                    "elements": [
-                      { "type": "button", "text": { "type": "plain_text", "text": "SonarCloud (Project)" }, "url": "https://sonarcloud.io/project/overview?id=${SONAR_PROJ}" },
-                      { "type": "button", "text": { "type": "plain_text", "text": "GitHub Actions" }, "url": "${RUN_URL}" }
-                    ]
-                  }
-          EOF
-          )
-              fi
-
-              payload=$(cat <<EOF
+            EOF
+            )
+          else
+            PR_BLOCK=$(cat <<EOF
               {
-                "attachments": [{
-                  "color": "#D32F2F",
-                  "blocks": [
-                    { "type": "header", "text": { "type": "plain_text", "text": "🚨 SAST Analysis just Failed (Quality Gate/Job FAILED) 🚨" } },
-                    { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo:* ${REPO}" } },
-                    { "type": "section", "text": { "type": "mrkdwn", "text": "*Branch:* ${REF_NAME}\n*Actor:* ${ACTOR}\n*Event:* ${EVENT_NAME}" }},
-                    ${PR_BLOCK}
-                  ]
-                }]
+                "type": "context",
+                "elements": [{ "type": "mrkdwn", "text": "_Event: push (no PR)_" }]
+              },
+              {
+                "type": "actions",
+                "elements": [
+                  { "type": "button", "text": { "type": "plain_text", "text": "SonarCloud (Project)" }, "url": "https://sonarcloud.io/project/overview?id=${SONAR_PROJ}" },
+                  { "type": "button", "text": { "type": "plain_text", "text": "GitHub Actions" }, "url": "${RUN_URL}" }
+                ]
               }
+            EOF
+            )
+          fi
+
+          payload=$(cat <<EOF
+            {
+              "attachments": [{
+                "color": "#D32F2F",
+                "blocks": [
+                  { "type": "header", "text": { "type": "plain_text", "text": "🚨 SAST Analysis just Failed (Quality Gate/Job FAILED) 🚨" } },
+                  { "type": "section", "text": { "type": "mrkdwn", "text": "*Repo:* ${REPO}" } },
+                  { "type": "section", "text": { "type": "mrkdwn", "text": "*Branch:* ${REF_NAME}\n*Actor:* ${ACTOR}\n*Event:* ${EVENT_NAME}" }},
+                  ${PR_BLOCK}
+                ]
+              }]
+            }
           EOF
           )
-              
+
           payload="${payload//'%'/'%25'}"
           payload="${payload//$'\n'/'%0A'}"
           payload="${payload//$'\r'/'%0D'}"
 
           echo "slack_payload=$payload" >> $GITHUB_OUTPUT
-
-          echo $GITHUB_OUTPUT . "\n"
     outputs:
-      slack_payload: ${{ steps.msg.outputs.slack_payload }}
+      slack_payload2: ${{ steps.msg.outputs.slack_payload }}
 
   compose-email-alert-on-fail:
     needs: [decide-alert]
@@ -200,13 +198,13 @@ jobs:
           REPO: ${{ github.repository }}
           REF: ${{ github.ref_name }}
           ACTOR: ${{ github.actor }}
-          EVENT: ${{ github.event_name }}
+          EVENT_NAME: ${{ github.event_name }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           PR_URL: ${{ github.event_name == 'pull_request' && github.event.pull_request.html_url || '' }}
           PR_NUM: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           PR_TITLE: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || '' }}
         run: |
-          if [ -n "$PR_NUM" ]; then
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$PR_NUM" ]; then
             PR_BLOCK="<p><b>Pull Request:</b> <a href=\"$PR_URL\">PR #$PR_NUM - $PR_TITLE</a></p>
             <p><b>SonarCloud (PR):</b> <a href=\"https://sonarcloud.io/project/analysis?id=$SONAR_PROJECT_KEY&pullRequest=$PR_NUM\">Open PR Analysis</a></p>"
           else
@@ -250,10 +248,8 @@ jobs:
           body="${body//$'\r'/'%0D'}"
 
           echo "email_body=$body" >> "$GITHUB_OUTPUT"
-
-          echo $GITHUB_OUTPUT . "\n"
     outputs:
-      email_body: ${{ steps.build.outputs.email_body }}
+      email_body2: ${{ steps.build.outputs.email_body }}
 
   debug-payloads:
     needs: [decide-alert, compose-slack-alert-on-fail, compose-email-alert-on-fail]
@@ -262,9 +258,9 @@ jobs:
     steps:
       - name: Echo needs.* values
         run: |
-          echo "needs.decide-alert.outputs.should_alert = ${{ needs['decide-alert'].outputs.should_alert }}"
-          echo "needs.compose-slack-alert-on-fail.outputs.slack_payload = ${{ needs['compose-slack-alert-on-fail'].outputs.slack_payload }}"
-          echo "needs.compose-email-alert-on-fail.outputs.email_body = ${{ needs['compose-email-alert-on-fail'].outputs.email_body }}"
+          echo "needs.decide-alert.outputs.should_alert = ${{ needs.decide-alert.outputs.should_alert }}"
+          echo "needs.compose-slack-alert-on-fail.outputs.slack_payload2 = ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload2 }}"
+          echo "needs.compose-email-alert-on-fail.outputs.email_body2 = ${{ needs.compose-email-alert-on-fail.outputs.email_body2 }}"
 
   alerts:
     needs: [compose-slack-alert-on-fail, compose-email-alert-on-fail, sast]
@@ -282,9 +278,9 @@ jobs:
 
       # Slack Alert
       send_slack: true
-      slack_payload: ${{ needs['compose-slack-alert-on-fail'].outputs.slack_payload }}
+      slack_payload: ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload2 }}
 
       # Email Alert
       send_email: true
       email_subject: "[ALERT] SAST Analysis just Failed (Quality Gate/Job FAILED) - ${{ github.repository }}"
-      email_body: ${{ needs['compose-email-alert-on-fail'].outputs.email_body }}
+      email_body: ${{ needs.compose-email-alert-on-fail.outputs.email_body2 }}
