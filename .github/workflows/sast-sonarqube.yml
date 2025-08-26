@@ -259,7 +259,9 @@ jobs:
       - name: Echo needs.* values
         run: |
           echo "should_alert         = ${{ needs.decide-alert.outputs.should_alert }}"
+          echo "slack_payload        = $(echo -n '${{ needs['compose-slack-alert-on-fail'].outputs.slack_payload }}')"
           echo "slack_payload_len    = $(echo -n '${{ needs['compose-slack-alert-on-fail'].outputs.slack_payload }}' | wc -c)"
+          echo "email_body           = $(echo -n '${{ needs['compose-email-alert-on-fail'].outputs.email_body }}')"
           echo "email_body_len       = $(echo -n '${{ needs['compose-email-alert-on-fail'].outputs.email_body }}' | wc -c)"
 
   alerts:
