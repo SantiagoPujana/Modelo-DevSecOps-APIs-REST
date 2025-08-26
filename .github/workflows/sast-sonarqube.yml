@@ -182,9 +182,9 @@ jobs:
           payload="${payload//$'\n'/'%0A'}"
           payload="${payload//$'\r'/'%0D'}"
 
-          echo $payload . "\n"
-
           echo "slack_payload=$payload" >> $GITHUB_OUTPUT
+
+          echo $GITHUB_OUTPUT . "\n"
     outputs:
       slack_payload: ${{ steps.msg.outputs.slack_payload }}
 
@@ -249,9 +249,9 @@ jobs:
           body="${body//$'\n'/'%0A'}"
           body="${body//$'\r'/'%0D'}"
 
-          echo $body . "\n"
-
           echo "email_body=$body" >> "$GITHUB_OUTPUT"
+
+          echo $GITHUB_OUTPUT . "\n"
     outputs:
       email_body: ${{ steps.build.outputs.email_body }}
 
