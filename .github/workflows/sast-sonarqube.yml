@@ -152,7 +152,7 @@ jobs:
                         {type:"divider"},
                         {type:"section", text:{type:"mrkdwn", text:"*Pull Request:* <\($prurl)|PR #\($prnum) - \($prtitle)>"}},
                         {type:"actions", elements:[
-                          {type:"button", text:{type:"plain_text", text:"Ver PR"}, url:$prurl},
+                          {type:"button", text:{type:"plain_text", text:"Check PR"}, url:$prurl},
                           {type:"button", text:{type:"plain_text", text:"SonarCloud (PR)"}, url:("https://sonarcloud.io/project/analysis?id=" + $sonar + "&pullRequest=" + $prnum)},
                           {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
                         ]}
@@ -162,12 +162,13 @@ jobs:
               }]
             }')
 
-          echo "slack_payload=$(echo $payload | jq '. | tostring')" >> "$GITHUB_OUTPUT"
+          echo 'slack_payload=$(echo $payload | jq '. | tostring')' >> "$GITHUB_OUTPUT"
 
           cat "$GITHUB_OUTPUT"
 
-          payload='{"attachments":[{"color":"#D32F2F","blocks":[{"type":"header","text":{"type":"plain_text","text":"🚨 SAST/QG FAILED"}},{"type":"section","text":{"type":"mrkdwn","text":"*Repo:* '${{ github.repository }}'"}}]}]}'
+          payload='{"attachments":[{"color":"#D32F2F","blocks":[{"type":"header","text":{"type":"plain_text","text":"🚨 SAST/QG FAILED"}},{"type":"section","text":{"type":"mrkdwn","text":"*Repo:* '${{ github.repository }}'"}}]}]},{"attachments":[{"color":"#D32F2F","blocks":[{"type":"header","text":{"type":"plain_text","text":"🚨 SAST/QG FAILED"}},{"type":"section","text":{"type":"mrkdwn","text":"*Repo:* '${{ github.repository }}'"}}]}]},{"attachments":[{"color":"#D32F2F","blocks":[{"type":"header","text":{"type":"plain_text","text":"🚨 SAST/QG FAILED"}},{"type":"section","text":{"type":"mrkdwn","text":"*Repo:* '${{ github.repository }}'"}}]}]},{"attachments":[{"color":"#D32F2F","blocks":[{"type":"header","text":{"type":"plain_text","text":"🚨 SAST/QG FAILED"}},{"type":"section","text":{"type":"mrkdwn","text":"*Repo:* '${{ github.repository }}'"}}]}]},{"attachments":[{"color":"#D32F2F","blocks":[{"type":"header","text":{"type":"plain_text","text":"🚨 SAST/QG FAILED"}},{"type":"section","text":{"type":"mrkdwn","text":"*Repo:* '${{ github.repository }}'"}}]}]},{"attachments":[{"color":"#D32F2F","blocks":[{"type":"header","text":{"type":"plain_text","text":"🚨 SAST/QG FAILED"}},{"type":"section","text":{"type":"mrkdwn","text":"*Repo:* '${{ github.repository }}'"}}]}]},{"attachments":[{"color":"#D32F2F","blocks":[{"type":"header","text":{"type":"plain_text","text":"🚨 SAST/QG FAILED"}},{"type":"section","text":{"type":"mrkdwn","text":"*Repo:* '${{ github.repository }}'"}}]}]},{"attachments":[{"color":"#D32F2F","blocks":[{"type":"header","text":{"type":"plain_text","text":"🚨 SAST/QG FAILED"}},{"type":"section","text":{"type":"mrkdwn","text":"*Repo:* '${{ github.repository }}'"}}]}]},{"attachments":[{"color":"#D32F2F","blocks":[{"type":"header","text":{"type":"plain_text","text":"🚨 SAST/QG FAILED"}},{"type":"section","text":{"type":"mrkdwn","text":"*Repo:* '${{ github.repository }}'"}}]}]},{"attachments":[{"color":"#D32F2F","blocks":[{"type":"header","text":{"type":"plain_text","text":"🚨 SAST/QG FAILED"}},{"type":"section","text":{"type":"mrkdwn","text":"*Repo:* '${{ github.repository }}'"}}]}]}'
           echo "slack_payload=$payload" >> $GITHUB_OUTPUT
+          cat "$GITHUB_OUTPUT"
     outputs:
       slack_payload: ${{ steps.msg.outputs.slack_payload }}
 
