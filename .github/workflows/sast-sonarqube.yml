@@ -126,7 +126,7 @@ jobs:
                       elements: [
                         {type:"mrkdwn", text:("*Branch:* " + $ref)},
                         {type:"mrkdwn", text:("*Actor:* " + $actor)},
-                        {type:"mrkdwn", text:("*Event:* < > \n | " + $event)}
+                        {type:"mrkdwn", text:("*Event:* https://sonarcloud.io/project/overview?id= " + $event)}
                       ]
                     }#,
                     #{
