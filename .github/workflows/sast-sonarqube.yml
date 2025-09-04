@@ -153,8 +153,7 @@ jobs:
         #  cat "$GITHUB_OUTPUT"
         run: |
             # Construye tu JSON (puede ser multilinea) y compáctalo:
-            jq -n \
-              --arg repo "${{ github.repository }}" \
+            jq -n --arg repo "${{ github.repository }}" \
               --arg ref "${{ github.ref_name }}" \
               --arg actor "${{ github.actor }}" \
               --arg event "${{ github.event_name }}" '
