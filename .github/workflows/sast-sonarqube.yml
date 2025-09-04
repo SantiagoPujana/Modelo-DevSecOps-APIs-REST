@@ -115,20 +115,15 @@ jobs:
             --arg prnum "${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}" \
             --arg prtitle "${{ github.event_name == 'pull_request' && github.event.pull_request.title || '' }}" '
             {
-              attachments: [{
-                color: "#D32F2F",
-                blocks:
-                  [
+              attachments: [
+                {
+                  color: "#D32F2F",
+                  blocks: [
                     {type:"header", text:{type:"plain_text", text:"🚨 SAST Analysis just FAILED (Quality Gate/Job) 🚨"}},
-                    {type:"section", text:{type:"mrkdwn", text:("*Repo:* " + $repo)}},
-                    {type:"context", elements:[
-                      {type:"mrkdwn", text:("*Branch:* " + $ref)},
-                      {type:"mrkdwn", text:("*Actor:* " + $actor)},
-                      {type:"mrkdwn", text:("*Event:* " + $event)}]},
-                    {type:"section", text:{type:"mrkdwn",
-                      text:("*Run:* <" + $run + "|Open in GitHub Actions>\n*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=" + $sonar + "|Open>") }}
+                    {type:"section", text:{type:"mrkdwn", text:("*Repo:* " + $repo)}}
                   ] 
-              }]
+                }
+              ]
             }' | jq -c > payload.json
 
           PAYLOAD="$(cat payload.json)"
