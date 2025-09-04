@@ -92,7 +92,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Notify Slack (Quality Gate/Job failed)
-        id: slack-msg
+        id: slack_msg
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           REPO: ${{ github.repository }}
@@ -152,9 +152,9 @@ jobs:
 
       - name: Debug composed payload
         run: |
-          echo "slack_payload_len=$(echo -n '${{ steps.slack-msg.outputs.slack_payload }}' | wc -c)"
+          echo "slack_payload_len=$(echo -n '${{ steps.slack_msg.outputs.slack_payload }}' | wc -c)"
     outputs:
-      slack_payload: ${{ steps.slack-msg.outputs.slack_payload }}
+      slack_payload: ${{ steps.slack_msg.outputs.slack_payload }}
 
   compose-email-alert-on-fail:
     needs: [decide-alert]
@@ -225,7 +225,7 @@ jobs:
       - name: Echo needs.* values
         run: |
           echo "should_alert         = ${{ needs.decide-alert.outputs.should_alert }}"
-          echo "slack_payload        = $(echo -n '${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}')"
+          echo "slack_payload        = $(echo -n '${{ fromJson(needs.compose-slack-alert-on-fail.outputs.slack_payload) }}')"
           echo "slack_payload_len    = $(echo -n '${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}' | wc -c)"
           echo "email_body           = $(echo -n '${{ needs.compose-email-alert-on-fail.outputs.email_body }}')"
           echo "email_body_len       = $(echo -n '${{ needs.compose-email-alert-on-fail.outputs.email_body }}' | wc -c)"
