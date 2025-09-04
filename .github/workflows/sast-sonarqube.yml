@@ -129,7 +129,7 @@ jobs:
                         {type:"mrkdwn", text:("*Event:* " + $event)},
                         {
                           type:"mrkdwn",
-                          text:("*Run:* <" + $run + "|Open in GitHub Actions>\n*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=" + $sonar + "|Open>")
+                          text:("*Run:* \<" + $run + "\|Open in GitHub Actions\>\\n*SonarCloud \(Project\):* \<https:\/\/sonarcloud.io\/project\/overview?id=" + $sonar + "\|Open\>")
                         }
                       ]
                     }#,
