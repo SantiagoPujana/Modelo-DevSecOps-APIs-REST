@@ -126,12 +126,19 @@ jobs:
                       elements: [
                         {type:"mrkdwn", text:("*Branch:* " + $ref)},
                         {type:"mrkdwn", text:("*Actor:* " + $actor)},
-                        {type:"mrkdwn", text:("*Event:* https://sonarcloud.io/project/overview?id= " + $event)}
+                        {type:"mrkdwn", text:("*Event:* " + $event)},
+                        {
+                          type:"mrkdwn",
+                          text:("*Run:* <" + $run + "|Open in GitHub Actions>\n*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=" + $sonar + "|Open>")
+                        }
                       ]
                     }#,
                     #{
                     #  type:"section",
-                    #  text:{type:"mrkdwn", text:("*Run:* <" + $run + "|Open in GitHub Actions>\n*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=" + $sonar + "|Open>")}
+                    #  text: {
+                    #    type:"mrkdwn",
+                    #    text:("*Run:* <" + $run + "|Open in GitHub Actions>\n*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=" + $sonar + "|Open>")
+                    #  }
                     #}
                   ] 
                 }
