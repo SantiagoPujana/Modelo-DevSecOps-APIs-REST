@@ -92,7 +92,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Notify Slack (Quality Gate/Job failed)
-        id: msg
+        id: slack-msg
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           REPO: ${{ github.repository }}
@@ -105,7 +105,7 @@ jobs:
           PR_NUM: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           PR_TITLE: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || '' }}
         run: |
-          payload=$(jq -c -n \
+          jq -n \
             --arg repo "$REPO" \
             --arg ref "$REF_NAME" \
             --arg actor "$ACTOR" \
@@ -142,13 +142,19 @@ jobs:
                     else [] end )
                   )
               }]
-            }')
+            }' | jq -c > payload.json
+
+          payload="$(cat payload.json)"
 
           echo "slack_payload=$payload" >> "$GITHUB_OUTPUT"
 
           cat "$GITHUB_OUTPUT"
+
+      - name: Debug composed payload
+        run: |
+          echo "slack_payload_len=$(echo -n '${{ steps.slack-msg.outputs.slack_payload }}' | wc -c)"
     outputs:
-      slack_payload: ${{ steps.msg.outputs.slack_payload }}
+      slack_payload: ${{ steps.slack-msg.outputs.slack_payload }}
 
   compose-email-alert-on-fail:
     needs: [decide-alert]
