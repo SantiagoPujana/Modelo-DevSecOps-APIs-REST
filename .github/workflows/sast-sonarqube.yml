@@ -104,82 +104,48 @@ jobs:
           PR_URL: ${{ github.event_name == 'pull_request' && github.event.pull_request.html_url || '' }}
           PR_NUM: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           PR_TITLE: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || '' }}
-        #run: |
-        #  jq -n \
-        #    --arg repo "$REPO" \
-        #    --arg ref "$REF_NAME" \
-        #    --arg actor "$ACTOR" \
-        #    --arg event "$EVENT_NAME" \
-        #    --arg run "$RUN_URL" \
-        #    --arg sonar "$SONAR_PROJ" \
-        #    --arg prurl "$PR_URL" \
-        #    --arg prnum "$PR_NUM" \
-        #    --arg prtitle "$PR_TITLE" \
-        #    '{
-        #      attachments: [{
-        #        color: "#D32F2F",
-        #        blocks:
-        #          ([
-        #            {type:"header", text:{type:"plain_text", text:"🚨 SAST Analysis just FAILED (Quality Gate/Job) 🚨"}},
-        #            {type:"section", text:{type:"mrkdwn", text:"*Repo:* \($repo)"}},
-        #            {type:"context", elements:[
-        #              {type:"mrkdwn", text:"*Branch:* \($ref)"},
-        #              {type:"mrkdwn", text:"*Actor:* \($actor)"},
-        #              {type:"mrkdwn", text:"*Event:* \($event)"}]},
-        #            {type:"section", text:{type:"mrkdwn",
-        #              text:"*Run:* <\($run)|Open in GitHub Actions>\n*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=\($sonar)|Open>" }}
-        #          ] +
-        #          ( if ($prnum|length) > 0 then
-        #              [
-        #                {type:"divider"},
-        #                {type:"section", text:{type:"mrkdwn", text:"*Pull Request:* <\($prurl)|PR #\($prnum) - \($prtitle)>"}},
-        #                {type:"actions", elements:[
-        #                  {type:"button", text:{type:"plain_text", text:"Check PR"}, url:$prurl},
-        #                  {type:"button", text:{type:"plain_text", text:"SonarCloud (PR)"}, url:("https://sonarcloud.io/project/analysis?id=" + $sonar + "&pullRequest=" + $prnum)},
-        #                  {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
-        #                ]}
-        #              ]
-        #            else [] end )
-        #          )
-        #      }]
-        #    }' | jq -c > payload.json
-
-        #  PAYLOAD="$(cat payload.json)"
-
-          #PAYLOAD='{"attachments":[{"color":"#D32F2F","blocks":[{"type":"header","text":{"type":"plain_text","text":"🚨 SAST Analysis just FAILED (Quality Gate/Job) 🚨"}},{"type":"section","text":{"type":"mrkdwn","text":"*Repo:* SantiagoPujana/Modelo-DevSecOps-APIs-REST"}},{"type":"context","elements":[{"type":"mrkdwn","text":"*Branch:* 3/merge"},{"type":"mrkdwn","text":"*Actor:* SantiagoPujana"},{"type":"mrkdwn","text":"*Event:* pull_request"}]},{"type":"section","text":{"type":"mrkdwn","text":"*Run:* <https://github.com/SantiagoPujana/Modelo-DevSecOps-APIs-REST/actions/runs/17450906263|Open in GitHub Actions>\n*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=***|Open>"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"*Pull Request:* <https://github.com/SantiagoPujana/Modelo-DevSecOps-APIs-REST/pull/3|PR #3 - set alerts v2>"}},{"type":"actions","elements":[{"type":"button","text":{"type":"plain_text","text":"Check PR"},"url":"https://github.com/SantiagoPujana/Modelo-DevSecOps-APIs-REST/pull/3"},{"type":"button","text":{"type":"plain_text","text":"SonarCloud (PR)"},"url":"https://sonarcloud.io/project/analysis?id=***&pullRequest=3"},{"type":"button","text":{"type":"plain_text","text":"GitHub Actions"},"url":"https://github.com/SantiagoPujana/Modelo-DevSecOps-APIs-REST/actions/runs/17450906263"}]}]}]}'
-
-        #  echo "slack_payload=$PAYLOAD" >> "$GITHUB_OUTPUT"
-
-        #  cat "$GITHUB_OUTPUT"
         run: |
-            # Construye tu JSON (puede ser multilinea) y compáctalo:
-            jq -n --arg repo "${{ github.repository }}" \
-              --arg ref "${{ github.ref_name }}" \
-              --arg actor "${{ github.actor }}" \
-              --arg event "${{ github.event_name }}" '
-              {
-                attachments: [
-                  {
-                    color: "#D32F2F",
-                    blocks: [
-                      { type:"header", text:{ type:"plain_text", text:"🚨 SAST Analysis just FAILED (Quality Gate/Job) 🚨" }},
-                      { type:"section", text:{ type:"mrkdwn", text:("*Repo:* " + $repo) }},
-                      {type:"context", elements:[
-                        {type:"mrkdwn", text:"*Branch:* \($ref)"},
-                        {type:"mrkdwn", text:"*Actor:* \($actor)"},
-                        {type:"mrkdwn", text:"*Event:* \($event)"}]}
-                    ]
-                  }
-                ]
-              }' | jq -c > payload.json
+          PAYLOAD=$(jq -c -n --arg repo "${{ github.repository }}" \
+            --arg ref "${{ github.ref_name }}" \
+            --arg actor "${{ github.actor }}" \
+            --arg event "${{ github.event_name }}" \
+            --arg run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --arg sonar "${{ secrets.SONAR_PROJECT_KEY }}" \
+            --arg prurl "${{ github.event_name == 'pull_request' && github.event.pull_request.html_url || '' }}" \
+            --arg prnum "${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}" \
+            --arg prtitle "${{ github.event_name == 'pull_request' && github.event.pull_request.title || '' }}" '
+            {
+              attachments: [{
+                color: "#D32F2F",
+                blocks:
+                  ([
+                    {type:"header", text:{type:"plain_text", text:"🚨 SAST Analysis just FAILED (Quality Gate/Job) 🚨"}},
+                    {type:"section", text:{type:"mrkdwn", text:"*Repo:* \($repo)"}},
+                    {type:"context", elements:[
+                      {type:"mrkdwn", text:"*Branch:* \($ref)"},
+                      {type:"mrkdwn", text:"*Actor:* \($actor)"},
+                      {type:"mrkdwn", text:"*Event:* \($event)"}]},
+                    {type:"section", text:{type:"mrkdwn",
+                      text:"*Run:* <\($run)|Open in GitHub Actions>\n*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=\($sonar)|Open>" }}
+                  ] +
+                  ( if ($prnum|length) > 0 then
+                      [
+                        {type:"divider"},
+                        {type:"section", text:{type:"mrkdwn", text:"*Pull Request:* <\($prurl)|PR #\($prnum) - \($prtitle)>"}},
+                        {type:"actions", elements:[
+                          {type:"button", text:{type:"plain_text", text:"Check PR"}, url:$prurl},
+                          {type:"button", text:{type:"plain_text", text:"SonarCloud (PR)"}, url:("https://sonarcloud.io/project/analysis?id=" + $sonar + "&pullRequest=" + $prnum)},
+                          {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
+                        ]}
+                      ]
+                    else [] end )
+                  )
+              }]
+            }')
 
-            payload="$(cat payload.json)"
+          echo "slack_payload=$PAYLOAD" >> "$GITHUB_OUTPUT"
 
-            # IMPORTANTE: escribir como step output (una sola línea)
-            echo "slack_payload=$payload" >> "$GITHUB_OUTPUT"
-      - name: Debug composed payload
-        run: |
-          echo "slack_payload_len=$(echo -n '${{ steps.slack_msg.outputs.slack_payload }}' | wc -c)"
+          cat "$GITHUB_OUTPUT"
     outputs:
       slack_payload: ${{ steps.slack_msg.outputs.slack_payload }}
 
