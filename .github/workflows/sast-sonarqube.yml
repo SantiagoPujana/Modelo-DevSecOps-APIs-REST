@@ -105,7 +105,7 @@ jobs:
           PR_NUM: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           PR_TITLE: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || '' }}
         run: |
-          PAYLOAD=$(jq -c -n --arg repo "${{ github.repository }}" \
+          jq -c -n --arg repo "${{ github.repository }}" \
             --arg ref "${{ github.ref_name }}" \
             --arg actor "${{ github.actor }}" \
             --arg event "${{ github.event_name }}" \
@@ -140,7 +140,9 @@ jobs:
                   #    ]
                   #  else [] end )
               }]
-            }')
+            }' > payload.json
+
+          PAYLOAD=$(cat payload.json)
 
           echo "slack_payload=$PAYLOAD" >> "$GITHUB_OUTPUT"
 
