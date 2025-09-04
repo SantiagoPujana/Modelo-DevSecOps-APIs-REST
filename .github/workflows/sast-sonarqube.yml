@@ -71,27 +71,9 @@ jobs:
         #with:
         #  scanMetadataReportFile: .scannerwork/report-task.txt # (default)      
 
-      - name: Capture QG status to step output
-        id: capture_qg
-        run: |
-          QG="${{ steps.qg.outputs.quality-gate-status }}"
-          if [ -z "$QG" ]; then QG="UNKNOWN"; fi
-          echo "qg_status=$QG" >> "$GITHUB_OUTPUT"
-
     outputs:
       job_status: ${{ job.status }}
-      qg_status: ${{ steps.capture_qg.outputs.qg_status }} # 'PASSED' | 'FAILED' | 'UNKNOWN'
-
-  debug-status:
-    needs: [sast]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Echo needs.* values
-        run: |
-          echo "needs.sast.result            = ${{ needs.sast.result }}"
-          echo "needs.sast.outputs.job_status= ${{ needs.sast.outputs.job_status }}"
-          echo "needs.sast.outputs.qg_status = ${{ needs.sast.outputs.qg_status }}"
+      qg_status: ${{ steps.qg.outputs.quality-gate-status }} # 'PASSED' | 'FAILED'
 
   decide-alert:
     needs: [sast]
@@ -161,16 +143,10 @@ jobs:
                   )
               }]
             }')
-          
-          echo "payload: $payload"
 
-          val="hola"
-
-          echo "slack_payload=$val" >> "$GITHUB_OUTPUT"
+          echo "slack_payload=$payload" >> "$GITHUB_OUTPUT"
 
           cat "$GITHUB_OUTPUT"
-
-          echo "payload: $payload"
     outputs:
       slack_payload: ${{ steps.msg.outputs.slack_payload }}
 
