@@ -159,15 +159,12 @@ jobs:
               --arg event "$EVENT_NAME" \
               --arg run "$RUN_URL" \
               --arg sonar "$SONAR_PROJ" \
-              --arg prurl "$PR_URL" \
-              --arg prnum "$PR_NUM" \
-              --arg prtitle "$PR_TITLE" '
               {
                 attachments: [
                   {
                     color: "#D32F2F",
                     blocks: [
-                      { type:"header", text:{ type:"plain_text", text:"🚨 SAST Analysis just FAILED (Quality Gate/Job) 🚨" } },
+                      { type:"header", text:{ type:"plain_text", text:"🚨 SAST Analysis just FAILED (Quality Gate/Job) 🚨" }},
                       { type:"section", text:{ type:"mrkdwn", text: ("*Repo:* " + $repo) } },
                       {type:"context", elements:[
                         {type:"mrkdwn", text:"*Branch:* \($ref)"},
