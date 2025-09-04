@@ -116,7 +116,7 @@ jobs:
               attachments: [
                 {
                   color: "#D32F2F",
-                  blocks: [
+                  blocks: ([
                     {type:"header", text:{type:"plain_text", text:"🚨 SAST Analysis just FAILED (Quality Gate/Job) 🚨"}},
                     {type:"section", text:{type:"mrkdwn", text:("*Repo:* " + $repo)}},
                     {
@@ -146,6 +146,7 @@ jobs:
                         ]}
                       ]
                     else [] end )
+                  )
                 }
               ]
             }' | jq -c > payload.json
