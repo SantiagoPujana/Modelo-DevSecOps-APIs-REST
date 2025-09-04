@@ -124,9 +124,9 @@ jobs:
                     {
                       type:"context",
                       elements: [
-                        {type:"mrkdwn", text:("*Branch:* " + $ref)}#,
-                      #  {type:"mrkdwn", text:("*Actor:* " + $actor)},
-                      #  {type:"mrkdwn", text:("*Event:* " + $event)}
+                        {type:"mrkdwn", text:("*Branch:* " + $ref)},
+                        {type:"mrkdwn", text:("*Actor:* " + $actor)},
+                        {type:"mrkdwn", text:("*Event:* " + $event)}
                       ]
                     }#,
                     #{
