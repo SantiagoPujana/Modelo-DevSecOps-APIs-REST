@@ -146,6 +146,8 @@ jobs:
 
           payload="$(cat payload.json)"
 
+          payload='{"attachments":[{"color":"#D32F2F","blocks":[{"type":"header","text":{"type":"plain_text","text":"🚨 SAST Analysis just FAILED (Quality Gate/Job) 🚨"}},{"type":"section","text":{"type":"mrkdwn","text":"*Repo:* SantiagoPujana/Modelo-DevSecOps-APIs-REST"}},{"type":"context","elements":[{"type":"mrkdwn","text":"*Branch:* 3/merge"},{"type":"mrkdwn","text":"*Actor:* SantiagoPujana"},{"type":"mrkdwn","text":"*Event:* pull_request"}]},{"type":"section","text":{"type":"mrkdwn","text":"*Run:* <https://github.com/SantiagoPujana/Modelo-DevSecOps-APIs-REST/actions/runs/17450906263|Open in GitHub Actions>\n*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=***|Open>"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"*Pull Request:* <https://github.com/SantiagoPujana/Modelo-DevSecOps-APIs-REST/pull/3|PR #3 - set alerts v2>"}},{"type":"actions","elements":[{"type":"button","text":{"type":"plain_text","text":"Check PR"},"url":"https://github.com/SantiagoPujana/Modelo-DevSecOps-APIs-REST/pull/3"},{"type":"button","text":{"type":"plain_text","text":"SonarCloud (PR)"},"url":"https://sonarcloud.io/project/analysis?id=***&pullRequest=3"},{"type":"button","text":{"type":"plain_text","text":"GitHub Actions"},"url":"https://github.com/SantiagoPujana/Modelo-DevSecOps-APIs-REST/actions/runs/17450906263"}]}]}]}'
+
           echo "slack_payload=$payload" >> "$GITHUB_OUTPUT"
 
           cat "$GITHUB_OUTPUT"
@@ -225,7 +227,7 @@ jobs:
       - name: Echo needs.* values
         run: |
           echo "should_alert         = ${{ needs.decide-alert.outputs.should_alert }}"
-          echo "slack_payload        = $(echo -n '${{ fromJson(needs.compose-slack-alert-on-fail.outputs.slack_payload) }}')"
+          echo "slack_payload        = $(echo -n '${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}')"
           echo "slack_payload_len    = $(echo -n '${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}' | wc -c)"
           echo "email_body           = $(echo -n '${{ needs.compose-email-alert-on-fail.outputs.email_body }}')"
           echo "email_body_len       = $(echo -n '${{ needs.compose-email-alert-on-fail.outputs.email_body }}' | wc -c)"
