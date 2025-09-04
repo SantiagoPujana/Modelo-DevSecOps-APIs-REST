@@ -153,12 +153,13 @@ jobs:
         #  cat "$GITHUB_OUTPUT"
         run: |
             # Construye tu JSON (puede ser multilinea) y compáctalo:
-            jq -n --arg repo "$REPO" \
+            jq -n \
+              --arg repo "$REPO" \
               --arg ref "$REF_NAME" \
               --arg actor "$ACTOR" \
               --arg event "$EVENT_NAME" \
               --arg run "$RUN_URL" \
-              --arg sonar "$SONAR_PROJ" \
+              --arg sonar "$SONAR_PROJ" '
               {
                 attachments: [
                   {
