@@ -126,11 +126,11 @@ jobs:
                       elements: [
                         {type:"mrkdwn", text:("*Branch:* " + $ref)},
                         {type:"mrkdwn", text:("*Actor:* " + $actor)},
-                        {type:"mrkdwn", text:("*Event:* " + $event + "fnbeifneif")}#,
-                        #{
-                        #  type:"mrkdwn",
-                        #  text:("*Run:* <" + $run + "|Open in GitHub Actions>\n*SonarCloud [Project]:* <https://sonarcloud.io/project/overview?id=" + $sonar + "|Open>")
-                        #}
+                        {type:"mrkdwn", text:("*Event:* " + $event)},
+                        {
+                          type:"mrkdwn",
+                          text:("*Run:* <" + $run + "|Open in GitHub Actions>\n*SonarCloud [Project]:* <https://sonarcloud.io/project/overview?id=")# + $sonar + "|Open>")
+                        }
                       ]
                     }#,
                     #{
