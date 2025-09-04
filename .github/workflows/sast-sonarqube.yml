@@ -127,18 +127,18 @@ jobs:
                       {type:"mrkdwn", text:"*Event:* \($event)"}]},
                     {type:"section", text:{type:"mrkdwn",
                       text:"*Run:* <\($run)|Open in GitHub Actions>\n*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=\($sonar)|Open>" }}
-                  ] +
-                  ( if ($prnum|length) > 0 then
-                      [
-                        {type:"divider"},
-                        {type:"section", text:{type:"mrkdwn", text:"*Pull Request:* <\($prurl)|PR #\($prnum) - \($prtitle)>"}},
-                        {type:"actions", elements:[
-                          {type:"button", text:{type:"plain_text", text:"Check PR"}, url:$prurl},
-                          {type:"button", text:{type:"plain_text", text:"SonarCloud (PR)"}, url:("https://sonarcloud.io/project/analysis?id=" + $sonar + "&pullRequest=" + $prnum)},
-                          {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
-                        ]}
-                      ]
-                    else [] end )
+                  ] #+
+                  #( if ($prnum|length) > 0 then
+                  #    [
+                  #      {type:"divider"},
+                  #      {type:"section", text:{type:"mrkdwn", text:"*Pull Request:* <\($prurl)|PR #\($prnum) - \($prtitle)>"}},
+                  #      {type:"actions", elements:[
+                  #        {type:"button", text:{type:"plain_text", text:"Check PR"}, url:$prurl},
+                  #        {type:"button", text:{type:"plain_text", text:"SonarCloud (PR)"}, url:("https://sonarcloud.io/project/analysis?id=" + $sonar + "&pullRequest=" + $prnum)},
+                  #        {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
+                  #      ]}
+                  #    ]
+                  #  else [] end )
                   )
               }]
             }')
