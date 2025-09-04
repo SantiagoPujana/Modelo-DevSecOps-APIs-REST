@@ -95,26 +95,23 @@ jobs:
         shell: bash
         id: slack_msg
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           REPO: ${{ github.repository }}
           REF_NAME: ${{ github.ref_name }}
           ACTOR: ${{ github.actor }}
           EVENT_NAME: ${{ github.event_name }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SONAR_PROJ: ${{ secrets.SONAR_PROJECT_KEY }}
           PR_URL: ${{ github.event_name == 'pull_request' && github.event.pull_request.html_url || '' }}
           PR_NUM: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           PR_TITLE: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || '' }}
         run: |
-          jq -n --arg repo "${{ github.repository }}" \
-            --arg ref "${{ github.ref_name }}" \
-            --arg actor "${{ github.actor }}" \
-            --arg event "${{ github.event_name }}" \
-            --arg run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            --arg sonar "${{ secrets.SONAR_PROJECT_KEY }}" \
-            --arg prurl "${{ github.event_name == 'pull_request' && github.event.pull_request.html_url || '' }}" \
-            --arg prnum "${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}" \
-            --arg prtitle "${{ github.event_name == 'pull_request' && github.event.pull_request.title || '' }}" '
+          jq -n --arg repo "$REPO" \
+            --arg ref "$REF_NAME" \
+            --arg actor "$ACTOR" \
+            --arg event "$EVENT_NAME" \
+            --arg run "$RUN_URL" \
+            --arg prurl "$PR_URL" \
+            --arg prnum "$PR_NUM" \
+            --arg prtitle "$PR_TITLE" '
             {
               attachments: [
                 {
@@ -137,7 +134,18 @@ jobs:
                         text:("*Run:* <" + $run + "|Open in GitHub Actions>\n*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=SONAR_PROJECT_KEY|Open>")
                       }
                     }
-                  ] 
+                  ] +
+                  ( if ($prnum|length) > 0 then
+                      [
+                        {type:"divider"},
+                        {type:"section", text:{type:"mrkdwn", text:("*Pull Request:* <" + $prurl + "|PR #" + $prnum + " - " + $prtitle + ">")}},
+                        {type:"actions", elements:[
+                          {type:"button", text:{type:"plain_text", text:"Check PR"}, url:$prurl},
+                          {type:"button", text:{type:"plain_text", text:"SonarCloud (PR)"}, url:("https://sonarcloud.io/project/analysis?id=SONAR_PROJECT_KEY&pullRequest=" + $prnum)},
+                          {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
+                        ]}
+                      ]
+                    else [] end )
                 }
               ]
             }' | jq -c > payload.json
