@@ -105,7 +105,7 @@ jobs:
           PR_NUM: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           PR_TITLE: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || '' }}
         run: |
-          jq -c -n --arg repo "${{ github.repository }}" \
+          jq -n --arg repo "${{ github.repository }}" \
             --arg ref "${{ github.ref_name }}" \
             --arg actor "${{ github.actor }}" \
             --arg event "${{ github.event_name }}" \
@@ -127,20 +127,9 @@ jobs:
                       {type:"mrkdwn", text:"*Event:* \($event)"}]},
                     {type:"section", text:{type:"mrkdwn",
                       text:"*Run:* <\($run)|Open in GitHub Actions>\n*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=\($sonar)|Open>" }}
-                  ] #+
-                  #( if ($prnum|length) > 0 then
-                  #    [
-                  #      {type:"divider"},
-                  #      {type:"section", text:{type:"mrkdwn", text:"*Pull Request:* <\($prurl)|PR #\($prnum) - \($prtitle)>"}},
-                  #      {type:"actions", elements:[
-                  #        {type:"button", text:{type:"plain_text", text:"Check PR"}, url:$prurl},
-                  #        {type:"button", text:{type:"plain_text", text:"SonarCloud (PR)"}, url:("https://sonarcloud.io/project/analysis?id=" + $sonar + "&pullRequest=" + $prnum)},
-                  #        {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
-                  #      ]}
-                  #    ]
-                  #  else [] end )
+                  ] 
               }]
-            }' > payload.json
+            }' | jq -c > payload.json
 
           PAYLOAD=$(cat payload.json)
 
