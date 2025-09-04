@@ -120,7 +120,14 @@ jobs:
                   color: "#D32F2F",
                   blocks: [
                     {type:"header", text:{type:"plain_text", text:"🚨 SAST Analysis just FAILED (Quality Gate/Job) 🚨"}},
-                    {type:"section", text:{type:"mrkdwn", text:("*Repo:* " + $repo)}}
+                    {type:"section", text:{type:"mrkdwn", text:("*Repo:* " + $repo)}},
+                    {type:"context", elements: [
+                        {type:"mrkdwn", text:("*Branch:* " + $ref)},
+                        {type:"mrkdwn", text:("*Actor:* " + $actor)},
+                        {type:"mrkdwn", text:("*Event:* " + $event)}
+                      ]
+                    },
+                    {type:"section", text:{type:"mrkdwn", text:("*Run:* <" + $run + "|Open in GitHub Actions>\n*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=" + $sonar + "|Open>")}}
                   ] 
                 }
               ]
