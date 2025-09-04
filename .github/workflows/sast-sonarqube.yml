@@ -153,8 +153,7 @@ jobs:
         #  cat "$GITHUB_OUTPUT"
         run: |
             # Construye tu JSON (puede ser multilinea) y compáctalo:
-            jq -n \
-              --arg repo "$REPO" \
+            jq -n --arg repo "$REPO" \
               --arg ref "$REF_NAME" \
               --arg actor "$ACTOR" \
               --arg event "$EVENT_NAME" \
@@ -162,8 +161,8 @@ jobs:
               --arg sonar "$SONAR_PROJ" \
               --arg prurl "$PR_URL" \
               --arg prnum "$PR_NUM" \
-              --arg prtitle "$PR_TITLE" \ 
-              '{
+              --arg prtitle "$PR_TITLE" '
+              {
                 attachments: [
                   {
                     color: "#D32F2F",
