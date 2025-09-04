@@ -153,14 +153,29 @@ jobs:
         #  cat "$GITHUB_OUTPUT"
         run: |
             # Construye tu JSON (puede ser multilinea) y compáctalo:
-            jq -n --arg repo "${{ github.repository }}" '
-            {
+            jq -n \
+            --arg repo "$REPO" \
+            --arg ref "$REF_NAME" \
+            --arg actor "$ACTOR" \
+            --arg event "$EVENT_NAME" \
+            --arg run "$RUN_URL" \
+            --arg sonar "$SONAR_PROJ" \
+            --arg prurl "$PR_URL" \
+            --arg prnum "$PR_NUM" \
+            --arg prtitle "$PR_TITLE" \ 
+            '{
               attachments: [
                 {
                   color: "#D32F2F",
                   blocks: [
                     { type:"header", text:{ type:"plain_text", text:"🚨 SAST Analysis just FAILED (Quality Gate/Job) 🚨" } },
-                    { type:"section", text:{ type:"mrkdwn", text: ("*Repo:* " + $repo) } }
+                    { type:"section", text:{ type:"mrkdwn", text: ("*Repo:* " + $repo) } },
+                    {type:"context", elements:[
+                      {type:"mrkdwn", text:"*Branch:* \($ref)"},
+                      {type:"mrkdwn", text:"*Actor:* \($actor)"},
+                      {type:"mrkdwn", text:"*Event:* \($event)"}]},
+                    {type:"section", text:{type:"mrkdwn",
+                      text:"*Run:* <\($run)|Open in GitHub Actions>\n*SonarCloud (Project):* <https://sonarcloud.io/project/overview?id=\($sonar)|Open>" }}
                   ]
                 }
               ]
