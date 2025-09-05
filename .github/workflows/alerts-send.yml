@@ -24,12 +24,12 @@ on:
       send_email:
         required: false
         type: boolean
-        default: false
+        default: true
       email_subject:
         required: false
         type: string
         default: ""
-      email_body:
+      email_body_b64:
         required: false
         type: string
         default: ""
@@ -66,10 +66,35 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           printf '%s' '${{ inputs.slack_payload }}' > payload.json
+
+          if [ -n "${SONAR_KEY:-}" ]; then
+            SAFE=$(printf '%s' "$SONAR_KEY" | sed -e 's/[&|/\\]/\\&/g')
+            sed -i "s|SONAR_PROJECT_KEY|$SAFE|g" payload.json
+          fi
+          
           curl -sS -X POST -H 'Content-type: application/json' --data @payload.json "$SLACK_WEBHOOK_URL"
 
+      - name: Materialize email body (b64 → file)
+        id: b64_body
+        shell: bash
+        run: |
+          printf '%s' '${{ inputs.email_body_b64 }}' | base64 --decode > email.html
+
+          if [ -n "${SONAR_KEY:-}" ]; then
+            SAFE=$(printf '%s' "$SONAR_KEY" | sed -e 's/[&|/\\]/\\&/g')
+            sed -i "s|SONAR_PROJECT_KEY|$SAFE|g" email.html
+          fi
+
+          DELIM="EOM_$(date +%s%N)"
+
+          {
+            echo "email_body<<$DELIM"
+            cat email.html
+            echo "$DELIM"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Email - send
-        if: ${{ steps.gate.outputs.skip == 'false' && inputs.send_email && inputs.email_subject != '' && inputs.email_body != '' }}
+        if: ${{ steps.gate.outputs.skip == 'false' && inputs.send_email && inputs.email_subject != '' && inputs.email_body_b64 != '' }}
         uses: dawidd6/action-send-mail@v6
         with:
           server_address: ${{ secrets.SMTP_HOST }}
@@ -80,7 +105,7 @@ jobs:
           subject: ${{ inputs.email_subject }}
           to: ${{ secrets.MAIL_TO }}
           from: "DevSecOps Bot ${{ secrets.SMTP_USERNAME }}"
-          html_body: ${{ inputs.email_body }}
+          html_body: ${{ steps.b64_body.outputs.email_body }}
           # Optional unsigned/invalid certificates allowance:
           #ignore_cert: true
           # Optional carbon copy recipients:
