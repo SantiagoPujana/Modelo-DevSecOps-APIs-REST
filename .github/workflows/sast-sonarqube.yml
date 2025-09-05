@@ -67,9 +67,7 @@ jobs:
         uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        continue-on-error: true
-        #with:
-        #  scanMetadataReportFile: .scannerwork/report-task.txt # (default)      
+        continue-on-error: true 
 
     outputs:
       job_status: ${{ job.status }}
@@ -205,19 +203,6 @@ jobs:
           echo "email_body_b64=$BODY_B64" >> "$GITHUB_OUTPUT"
     outputs:
       email_body_b64: ${{ steps.email_msg.outputs.email_body_b64 }}
-
-  debug-payloads:
-    needs: [decide-alert, compose-slack-alert-on-fail, compose-email-alert-on-fail]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Echo needs.* values
-        run: |
-          echo "should_alert         = ${{ needs.decide-alert.outputs.should_alert }}"
-          echo "slack_payload        = $(echo -n '${{ needs.compose-slack-alert-on-fail.outputs.slack_payload_b64 }}')"
-          echo "slack_payload_len    = $(echo -n '${{ needs.compose-slack-alert-on-fail.outputs.slack_payload_b64 }}' | wc -c)"
-          echo "email_body           = $(echo -n '${{ needs.compose-email-alert-on-fail.outputs.email_body_b64 }}')"
-          echo "email_body_len       = $(echo -n '${{ needs.compose-email-alert-on-fail.outputs.email_body_b64 }}' | wc -c)"
 
   alerts:
     needs: [sast, compose-slack-alert-on-fail, compose-email-alert-on-fail]
