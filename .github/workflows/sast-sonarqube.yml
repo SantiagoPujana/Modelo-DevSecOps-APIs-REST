@@ -224,6 +224,7 @@ jobs:
     needs: [sast, compose-slack-alert-on-fail, compose-email-alert-on-fail]
     uses: ./.github/workflows/alerts-send.yml
     secrets:
+      SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       SMTP_HOST: ${{ secrets.SMTP_HOST }}
       SMTP_PORT: ${{ secrets.SMTP_PORT }}
