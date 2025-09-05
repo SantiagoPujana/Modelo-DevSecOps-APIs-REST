@@ -16,8 +16,8 @@ on:
         required: false
         type: boolean
         default: true
-      slack_payload:
-        description: "Slack Payload JSON Formatted already"
+      slack_payload_b64:
+        description: "Base64 Slack Payload JSON Formatted already"
         required: false
         type: string
         default: ""
@@ -30,6 +30,7 @@ on:
         type: string
         default: ""
       email_body_b64:
+        description: "Base64 Email Html Body Formatted already"
         required: false
         type: string
         default: ""
@@ -61,11 +62,11 @@ jobs:
           fi
 
       - name: Slack - send
-        if: ${{ steps.gate.outputs.skip == 'false' && inputs.send_slack && inputs.slack_payload != '' }}
+        if: ${{ steps.gate.outputs.skip == 'false' && inputs.send_slack && inputs.slack_payload_b64 != '' }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          printf '%s' '${{ inputs.slack_payload }}' > payload.json
+          printf '%s' '${{ inputs.slack_payload_b64 }}' | base64 --decode > payload.json
 
           if [ -n "${SONAR_KEY:-}" ]; then
             SAFE=$(printf '%s' "$SONAR_KEY" | sed -e 's/[&|/\\]/\\&/g')
@@ -119,6 +120,6 @@ jobs:
           echo "only_if_failed=${{ inputs.only_if_failed }}"
           echo "send_slack=${{ inputs.send_slack }}"
           echo "send_email=${{ inputs.send_email }}"
-          echo "slack_payload_len=$(echo -n '${{ inputs.slack_payload }}' | wc -c)"
+          echo "slack_payload_len=$(echo -n '${{ inputs.slack_payload_b64 }}' | wc -c)"
           echo "email_subject_empty=$([ -z '${{ inputs.email_subject }}' ] && echo yes || echo no)"
-          echo "email_body_len=$(echo -n '${{ inputs.email_body }}' | wc -c)"
+          echo "email_body_len=$(echo -n '${{ inputs.email_body_b64 }}' | wc -c)"

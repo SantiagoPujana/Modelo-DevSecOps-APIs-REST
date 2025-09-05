@@ -150,10 +150,12 @@ jobs:
                 }
               ]
             }')
+          
+          PAYLOAD_B64=$(printf '%s' "$PAYLOAD" | base64 -w0)
 
-          echo "slack_payload=$PAYLOAD" >> "$GITHUB_OUTPUT"
+          echo "slack_payload_b64=$PAYLOAD_B64" >> "$GITHUB_OUTPUT"
     outputs:
-      slack_payload: ${{ steps.slack_msg.outputs.slack_payload }}
+      slack_payload_b64: ${{ steps.slack_msg.outputs.slack_payload_b64 }}
 
   compose-email-alert-on-fail:
     needs: [decide-alert]
@@ -201,9 +203,9 @@ jobs:
 
           BODY_B64=$(printf '%s' "$BODY" | base64 -w0)
 
-          echo "email_body=$BODY_B64" >> "$GITHUB_OUTPUT"
+          echo "email_body_b64=$BODY_B64" >> "$GITHUB_OUTPUT"
     outputs:
-      email_body: ${{ steps.email_msg.outputs.email_body }}
+      email_body_b64: ${{ steps.email_msg.outputs.email_body_b64 }}
 
   debug-payloads:
     needs: [decide-alert, compose-slack-alert-on-fail, compose-email-alert-on-fail]
@@ -213,10 +215,10 @@ jobs:
       - name: Echo needs.* values
         run: |
           echo "should_alert         = ${{ needs.decide-alert.outputs.should_alert }}"
-          echo "slack_payload        = $(echo -n '${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}')"
-          echo "slack_payload_len    = $(echo -n '${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}' | wc -c)"
-          echo "email_body           = $(echo -n '${{ needs.compose-email-alert-on-fail.outputs.email_body }}')"
-          echo "email_body_len       = $(echo -n '${{ needs.compose-email-alert-on-fail.outputs.email_body }}' | wc -c)"
+          echo "slack_payload        = $(echo -n '${{ needs.compose-slack-alert-on-fail.outputs.slack_payload_b64 }}')"
+          echo "slack_payload_len    = $(echo -n '${{ needs.compose-slack-alert-on-fail.outputs.slack_payload_b64 }}' | wc -c)"
+          echo "email_body           = $(echo -n '${{ needs.compose-email-alert-on-fail.outputs.email_body_b64 }}')"
+          echo "email_body_len       = $(echo -n '${{ needs.compose-email-alert-on-fail.outputs.email_body_b64 }}' | wc -c)"
 
   alerts:
     needs: [sast, compose-slack-alert-on-fail, compose-email-alert-on-fail]
@@ -234,9 +236,9 @@ jobs:
 
       # Slack Alert
       send_slack: true
-      slack_payload: ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload }}
+      slack_payload_b64: ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload_b64 }}
 
       # Email Alert
       send_email: true
       email_subject: "[ALERT] SAST Analysis just Failed (Quality Gate/Job FAILED) - ${{ github.repository }}"
-      email_body_b64: ${{ needs.compose-email-alert-on-fail.outputs.email_body }}
+      email_body_b64: ${{ needs.compose-email-alert-on-fail.outputs.email_body_b64 }}
