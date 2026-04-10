@@ -1,43 +1,240 @@
 name: SCA (OWASP Dependency-Check)
-on: [push]
+
+on:
+  workflow_call:
+    outputs:
+      security_status:
+        description: "Security result for this phase: passed|failed"
+        value: ${{ jobs.dependency-check.outputs.security_status }}
+
 jobs:
-  noop:
+  dependency-check:
+    runs-on: ubuntu-latest
+    outputs:
+      security_status: ${{ steps.final_status.outputs.security_status }}
+      job_status: ${{ steps.final_status.outputs.job_status }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare evidence directory
+        run: mkdir -p security/evidence/dependency-check
+
+      - name: Run OWASP Dependency-Check against api-auth
+        id: dc_scan
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            -e user=$(id -u) \
+            -v "$(pwd)":/src \
+            owasp/dependency-check:latest \
+            --scan /src/api-auth \
+            --format "HTML" \
+            --format "JSON" \
+            --out /src/security/evidence/dependency-check \
+            --enableExperimental
+
+      - name: Validate report exists
+        id: validate_report
+        if: always()
+        continue-on-error: true
+        run: |
+          test -f security/evidence/dependency-check/dependency-check-report.json
+          test -f security/evidence/dependency-check/dependency-check-report.html
+
+      - name: Evaluate HIGH/CRITICAL vulnerabilities
+        id: vuln_check
+        if: always()
+        continue-on-error: true
+        run: |
+          jq -e '
+            [
+              .dependencies[]?
+              | .vulnerabilities[]?
+              | select(.severity == "HIGH" or .severity == "CRITICAL")
+            ] | length == 0
+          ' security/evidence/dependency-check/dependency-check-report.json
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: |
+            security/evidence/dependency-check/dependency-check-report.html
+            security/evidence/dependency-check/dependency-check-report.json
+
+      - name: Consolidate Dependency-Check result
+        id: final_status
+        if: always()
+        run: |
+          SCAN_OUTCOME="${{ steps.dc_scan.outcome }}"
+          REPORT_OUTCOME="${{ steps.validate_report.outcome }}"
+          VULN_OUTCOME="${{ steps.vuln_check.outcome }}"
+
+          echo "scan_outcome=$SCAN_OUTCOME"
+          echo "report_outcome=$REPORT_OUTCOME"
+          echo "vuln_outcome=$VULN_OUTCOME"
+
+          SECURITY_STATUS="passed"
+          JOB_STATUS="success"
+
+          if [ "$SCAN_OUTCOME" != "success" ] || [ "$REPORT_OUTCOME" != "success" ] || [ "$VULN_OUTCOME" != "success" ]; then
+            SECURITY_STATUS="failed"
+            JOB_STATUS="failure"
+          fi
+
+          echo "security_status=$SECURITY_STATUS" >> "$GITHUB_OUTPUT"
+          echo "job_status=$JOB_STATUS" >> "$GITHUB_OUTPUT"
+
+      - name: Write summary
+        if: always()
+        run: |
+          echo "## Dependency-Check Result" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Control | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Scan execution | ${{ steps.dc_scan.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Report generation | ${{ steps.validate_report.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| HIGH/CRITICAL check | ${{ steps.vuln_check.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Consolidated Security Status | ${{ steps.final_status.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Scan path: api-auth/" >> "$GITHUB_STEP_SUMMARY"
+
+  compose-slack-alert-on-fail:
+    needs: [dependency-check]
+    if: ${{ needs.dependency-check.outputs.security_status == 'failed' }}
     runs-on: ubuntu-latest
     steps:
-      - run: echo "SCA (OWASP Dependency-Check)"
+      - name: Build Slack payload
+        id: slack_msg
+        env:
+          REPO: ${{ github.repository }}
+          REF_NAME: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PR_URL: ${{ github.event_name == 'pull_request' && github.event.pull_request.html_url || '' }}
+          PR_NUM: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          PR_TITLE: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || '' }}
+        run: |
+          PAYLOAD=$(jq -c -n \
+            --arg repo "$REPO" \
+            --arg ref "$REF_NAME" \
+            --arg actor "$ACTOR" \
+            --arg event "$EVENT_NAME" \
+            --arg run "$RUN_URL" \
+            --arg prurl "$PR_URL" \
+            --arg prnum "$PR_NUM" \
+            --arg prtitle "$PR_TITLE" '
+            {
+              attachments: [
+                {
+                  color: "#D32F2F",
+                  blocks: (
+                    [
+                      {type:"header", text:{type:"plain_text", text:"🚨 Dependency-Check FAILED 🚨"}},
+                      {type:"section", text:{type:"mrkdwn", text:("*Repo:* " + $repo)}},
+                      {type:"section", text:{type:"mrkdwn", text:"*Scan path:* api-auth/"}},
+                      {
+                        type:"context",
+                        elements: [
+                          {type:"mrkdwn", text:("*Branch:* " + $ref)},
+                          {type:"mrkdwn", text:("*Actor:* " + $actor)},
+                          {type:"mrkdwn", text:("*Event:* " + $event)}
+                        ]
+                      },
+                      {
+                        type:"section",
+                        text: {
+                          type:"mrkdwn",
+                          text:("*Run:* <" + $run + "|Open in GitHub Actions>")
+                        }
+                      }
+                    ] +
+                    (if ($prnum|length) > 0 then
+                      [
+                        {type:"section", text:{type:"mrkdwn", text:("*Pull Request:* <" + $prurl + "|PR #" + $prnum + " - " + $prtitle + ">")}},
+                        {type:"actions", elements:[
+                          {type:"button", text:{type:"plain_text", text:"Check PR"}, url:$prurl},
+                          {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
+                        ]}
+                      ]
+                    else [] end)
+                  )
+                }
+              ]
+            }')
 
-#name: SCA (OWASP Dependency-Check)
-#on:
-#  pull_request:
-#  push:
-#    branches: [ main ]
+          PAYLOAD_B64=$(printf '%s' "$PAYLOAD" | base64 -w0)
+          echo "slack_payload_b64=$PAYLOAD_B64" >> "$GITHUB_OUTPUT"
+    outputs:
+      slack_payload_b64: ${{ steps.slack_msg.outputs.slack_payload_b64 }}
 
-#jobs:
-#  dependency-check:
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: Checkout
-#        uses: actions/checkout@v4
+  compose-email-alert-on-fail:
+    needs: [dependency-check]
+    if: ${{ needs.dependency-check.outputs.security_status == 'failed' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build email HTML
+        id: email_msg
+        env:
+          REPO: ${{ github.repository }}
+          REF_NAME: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PR_URL: ${{ github.event_name == 'pull_request' && github.event.pull_request.html_url || '' }}
+          PR_NUM: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          PR_TITLE: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || '' }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$PR_NUM" ]; then
+            PR_BLOCK="<p><b>Pull Request:</b> <a href=\"$PR_URL\">PR #$PR_NUM - $PR_TITLE</a></p>"
+          else
+            PR_BLOCK=""
+          fi
 
-#      - name: Run Dependency-Check (Docker)
-#        run: |
-#          mkdir -p security/evidence/dependency-check
-#          docker run --rm -e user=$(id -u) -v "$(pwd)":/src \
-#            owasp/dependency-check:latest \
-#            --scan /src \
-#            --format "HTML" \
-#            --out /src/security/evidence/dependency-check \
-#            --enableExperimental
+          BODY=$(cat <<EOF
+          <h2>🚨 Dependency-Check FAILED 🚨</h2>
 
-#      - name: Fail on HIGH/CRITICAL
-#        run: |
-          # convierte HTML a texto simple y busca severidades altas/criticas
-#          html2text security/evidence/dependency-check/dependency-check-report.html | \
-#            grep -E "CRITICAL|HIGH" && exit 1 || exit 0
-#        shell: bash
+          <table border="0" cellpadding="5">
+            <tr><td><b>Repo:</b></td><td>$REPO</td></tr>
+            <tr><td><b>Branch:</b></td><td>$REF_NAME</td></tr>
+            <tr><td><b>Actor:</b></td><td>$ACTOR</td></tr>
+            <tr><td><b>Event:</b></td><td>$EVENT_NAME</td></tr>
+            <tr><td><b>Scan path:</b></td><td>api-auth/</td></tr>
+          </table>
 
-#      - name: Upload report
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: dependency-check-report
-#          path: security/evidence/dependency-check/dependency-check-report.html
+          <p><b>Run:</b> <a href="$RUN_URL">Open execution in GitHub Actions</a></p>
+
+          $PR_BLOCK
+
+          <p>👉 Review the Dependency-Check artifact for HIGH/CRITICAL findings.</p>
+          EOF
+          )
+
+          BODY_B64=$(printf '%s' "$BODY" | base64 -w0)
+          echo "email_body_b64=$BODY_B64" >> "$GITHUB_OUTPUT"
+    outputs:
+      email_body_b64: ${{ steps.email_msg.outputs.email_body_b64 }}
+
+  alerts:
+    needs: [dependency-check, compose-slack-alert-on-fail, compose-email-alert-on-fail]
+    if: ${{ needs.dependency-check.outputs.security_status == 'failed' }}
+    uses: ./.github/workflows/alerts-send.yml
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      MAIL_TO: ${{ secrets.MAIL_TO }}
+    with:
+      status: failure
+      only_if_failed: true
+      send_slack: true
+      slack_payload_b64: ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload_b64 }}
+      send_email: true
+      email_subject: "[ALERT] Dependency-Check failed - ${{ github.repository }}"
+      email_body_b64: ${{ needs.compose-email-alert-on-fail.outputs.email_body_b64 }}
