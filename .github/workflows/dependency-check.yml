@@ -18,22 +18,45 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare evidence directory
-        run: mkdir -p security/evidence/dependency-check
+      - name: Prepare directories
+        run: |
+          mkdir -p .dependency-check-data
+          mkdir -p security/evidence/dependency-check
+
+      - name: Cache Dependency-Check data
+        uses: actions/cache@v4
+        with:
+          path: .dependency-check-data
+          key: ${{ runner.os }}-dependency-check-v1
+          restore-keys: |
+            ${{ runner.os }}-dependency-check-
 
       - name: Run OWASP Dependency-Check against api-auth
         id: dc_scan
         continue-on-error: true
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
+          EXTRA_ARGS="--nvdApiDelay 8000"
+
+          if [ -n "$NVD_API_KEY" ]; then
+            EXTRA_ARGS="--nvdApiKey $NVD_API_KEY --nvdApiDelay 3500"
+            echo "Running Dependency-Check with NVD API key"
+          else
+            echo "Running Dependency-Check without NVD API key"
+          fi
+
           docker run --rm \
             -e user=$(id -u) \
             -v "$(pwd)":/src \
-            owasp/dependency-check:latest \
+            -v "$(pwd)/.dependency-check-data":/usr/share/dependency-check/data \
+            owasp/dependency-check:12.1.0 \
             --scan /src/api-auth \
-            --format "HTML" \
-            --format "JSON" \
+            --format HTML \
+            --format JSON \
             --out /src/security/evidence/dependency-check \
-            --enableExperimental
+            --enableExperimental \
+            $EXTRA_ARGS
 
       - name: Validate report exists
         id: validate_report
@@ -95,12 +118,13 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Control | Result |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Scan execution | ${{ steps.dc_scan.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Dependency-Check scan | ${{ steps.dc_scan.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Report generation | ${{ steps.validate_report.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| HIGH/CRITICAL check | ${{ steps.vuln_check.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Consolidated Security Status | ${{ steps.final_status.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- Scan path: api-auth/" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Data cache path: .dependency-check-data" >> "$GITHUB_STEP_SUMMARY"
 
   compose-slack-alert-on-fail:
     needs: [dependency-check]

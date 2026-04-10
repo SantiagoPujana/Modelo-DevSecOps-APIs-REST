@@ -1,7 +1,7 @@
 # ❌ Código intencionalmente vulnerable para pruebas de SAST
 from fastapi import FastAPI, Query, Body
 import sqlite3
-import os, subprocess, hashlib, pickle, requests
+import subprocess, hashlib, pickle, requests
 
 app = FastAPI()
 
