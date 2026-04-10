@@ -79,6 +79,8 @@ jobs:
 
       - name: Materialize email body (b64 → file)
         id: b64_body
+        env:
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
         run: |
           printf '%s' '${{ inputs.email_body_b64 }}' | base64 --decode > email.html
 

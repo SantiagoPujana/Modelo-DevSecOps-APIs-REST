@@ -61,8 +61,24 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: SonarCloud Scan
-        id: sonar_scan
+      - name: SonarCloud Scan (Pull Request)
+        id: sonar_scan_pr
+        if: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: true
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=${{ secrets.SONAR_ORG }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
+            -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}
+
+      - name: SonarCloud Scan (Branch)
+        id: sonar_scan_branch
+        if: ${{ github.event_name != 'pull_request' }}
         continue-on-error: true
         uses: SonarSource/sonarqube-scan-action@v5
         env:
@@ -84,11 +100,20 @@ jobs:
         if: always()
         run: |
           TESTS_OUTCOME="${{ steps.tests.outcome }}"
-          SONAR_SCAN_OUTCOME="${{ steps.sonar_scan.outcome }}"
+          SONAR_SCAN_PR_OUTCOME="${{ steps.sonar_scan_pr.outcome }}"
+          SONAR_SCAN_BRANCH_OUTCOME="${{ steps.sonar_scan_branch.outcome }}"
           QG_STATUS="${{ steps.qg.outputs.quality-gate-status }}"
 
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            SONAR_SCAN_OUTCOME="$SONAR_SCAN_PR_OUTCOME"
+          else
+            SONAR_SCAN_OUTCOME="$SONAR_SCAN_BRANCH_OUTCOME"
+          fi
+
           echo "tests_outcome=$TESTS_OUTCOME"
-          echo "sonar_scan_outcome=$SONAR_SCAN_OUTCOME"
+          echo "sonar_scan_pr_outcome=$SONAR_SCAN_PR_OUTCOME"
+          echo "sonar_scan_branch_outcome=$SONAR_SCAN_BRANCH_OUTCOME"
+          echo "sonar_scan_selected_outcome=$SONAR_SCAN_OUTCOME"
           echo "qg_status=$QG_STATUS"
 
           SECURITY_STATUS="passed"
@@ -111,7 +136,8 @@ jobs:
           echo "| Control | Result |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
           echo "| Tests + Coverage | ${{ steps.tests.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| SonarCloud Scan | ${{ steps.sonar_scan.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| SonarCloud Scan (PR) | ${{ steps.sonar_scan_pr.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| SonarCloud Scan (Branch) | ${{ steps.sonar_scan_branch.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Quality Gate | ${{ steps.qg.outputs.quality-gate-status }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Consolidated Security Status | ${{ steps.final_status.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
 
