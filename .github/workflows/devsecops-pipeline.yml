@@ -49,7 +49,7 @@ jobs:
           echo "SAST_STATUS=$SAST_STATUS"
           echo "DEPENDENCY_CHECK_STATUS=$DEPENDENCY_CHECK_STATUS"
           echo "TRIVY_STATUS=$TRIVY_STATUS"
-          echo "ZAP_STATUS=$ZAP_STATUS"
+          #echo "ZAP_STATUS=$ZAP_STATUS"
 
           DEPLOY_ALLOWED=true
 
