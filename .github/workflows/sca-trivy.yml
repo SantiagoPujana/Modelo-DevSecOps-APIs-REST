@@ -16,23 +16,22 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Prepare evidence directory
         run: mkdir -p security/evidence/trivy
 
-      - name: Install Trivy
-        uses: aquasecurity/trivy-action@0.35.0
-        with:
-          cache: true
-
       - name: Trivy FS scan (api-auth)
         id: trivy_fs
         continue-on-error: true
-        run: |
-          trivy fs /github/workspace/api-auth \
-            --format json \
-            --output security/evidence/trivy/fs-report.json
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: fs
+          scan-ref: ./api-auth
+          format: json
+          output: security/evidence/trivy/fs-report.json
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
 
       - name: Build Docker image
         id: build_image
@@ -45,10 +44,13 @@ jobs:
         id: trivy_image
         if: ${{ hashFiles('api-auth/Dockerfile') != '' }}
         continue-on-error: true
-        run: |
-          trivy image api-auth:ci \
-            --format json \
-            --output security/evidence/trivy/image-report.json
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: api-auth:ci
+          format: json
+          output: security/evidence/trivy/image-report.json
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
 
       - name: Validate FS report exists
         id: validate_fs_report
@@ -57,7 +59,7 @@ jobs:
         run: |
           test -f security/evidence/trivy/fs-report.json
 
-      - name: Evaluate HIGH/CRITICAL vulnerabilities in FS scan
+      - name: Evaluate HIGH/CRITICAL findings in FS scan
         id: fs_vuln_check
         if: always()
         continue-on-error: true
@@ -77,7 +79,7 @@ jobs:
         run: |
           test -f security/evidence/trivy/image-report.json
 
-      - name: Evaluate HIGH/CRITICAL vulnerabilities in image scan
+      - name: Evaluate HIGH/CRITICAL findings in image scan
         id: image_vuln_check
         if: ${{ always() && hashFiles('api-auth/Dockerfile') != '' }}
         continue-on-error: true
@@ -92,7 +94,7 @@ jobs:
 
       - name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: trivy-reports
           path: |

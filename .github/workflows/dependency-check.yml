@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Prepare directories
         run: |
@@ -24,10 +24,10 @@ jobs:
           mkdir -p security/evidence/dependency-check
 
       - name: Cache Dependency-Check data
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .dependency-check-data
-          key: ${{ runner.os }}-dependency-check-v1
+          key: ${{ runner.os }}-dependency-check-v2
           restore-keys: |
             ${{ runner.os }}-dependency-check-
 
@@ -46,17 +46,42 @@ jobs:
             echo "Running Dependency-Check without NVD API key"
           fi
 
-          docker run --rm \
-            -e user=$(id -u) \
-            -v "$(pwd)":/src \
-            -v "$(pwd)/.dependency-check-data":/usr/share/dependency-check/data \
-            owasp/dependency-check:12.1.0 \
-            --scan /src/api-auth \
-            --format HTML \
-            --format JSON \
-            --out /src/security/evidence/dependency-check \
-            --enableExperimental \
-            $EXTRA_ARGS
+          run_scan () {
+            docker run --rm \
+              -e user=$(id -u) \
+              -v "$(pwd)":/src \
+              -v "$(pwd)/.dependency-check-data":/usr/share/dependency-check/data \
+              owasp/dependency-check:12.1.0 \
+              --data /usr/share/dependency-check/data \
+              --scan /src/api-auth \
+              --format HTML \
+              --format JSON \
+              --out /src/security/evidence/dependency-check \
+              --enableExperimental \
+              $EXTRA_ARGS
+          }
+
+          set +e
+          run_scan 2>&1 | tee dc.log
+          RC=${PIPESTATUS[0]}
+
+          if [ $RC -ne 0 ] && grep -Eq "exclusive lock on the H2 database|No documents exist|corrupt database|Unable to connect to the database" dc.log; then
+            echo "Dependency-Check cache appears locked/corrupt. Purging local data and retrying once..."
+
+            rm -rf .dependency-check-data/*
+            mkdir -p .dependency-check-data
+
+            docker run --rm \
+              -v "$(pwd)/.dependency-check-data":/usr/share/dependency-check/data \
+              owasp/dependency-check:12.1.0 \
+              --data /usr/share/dependency-check/data \
+              --purge
+
+            run_scan 2>&1 | tee dc.log
+            RC=${PIPESTATUS[0]}
+          fi
+
+          exit $RC
 
       - name: Validate report exists
         id: validate_report
@@ -81,12 +106,13 @@ jobs:
 
       - name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dependency-check-report
           path: |
             security/evidence/dependency-check/dependency-check-report.html
             security/evidence/dependency-check/dependency-check-report.json
+            dc.log
 
       - name: Consolidate Dependency-Check result
         id: final_status
