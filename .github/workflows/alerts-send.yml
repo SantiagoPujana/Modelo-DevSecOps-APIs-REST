@@ -89,7 +89,7 @@ jobs:
 
       - name: Email - send
         if: ${{ steps.gate.outputs.skip == 'false' && inputs.send_email && inputs.email_subject != '' && inputs.email_body_b64 != '' }}
-        uses: dawidd6/action-send-mail@v6
+        uses: dawidd6/action-send-mail@v16
         with:
           server_address: ${{ secrets.SMTP_HOST }}
           server_port: ${{ secrets.SMTP_PORT }}
