@@ -10,6 +10,8 @@ on:
 jobs:
   dependency-check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       security_status: ${{ steps.final_status.outputs.security_status }}
       job_status: ${{ steps.final_status.outputs.job_status }}
@@ -27,7 +29,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: .dependency-check-data
-          key: ${{ runner.os }}-dependency-check-db-v1
+          key: ${{ runner.os }}-dependency-check-db-v3
           restore-keys: |
             ${{ runner.os }}-dependency-check-db-
 
@@ -67,11 +69,14 @@ jobs:
 
       - name: Verify Dependency-Check DB
         run: |
-          if [ ! -d ".dependency-check-data" ]; then
-            echo "Dependency-Check DB directory not found"
+          echo "Cache hit: ${{ steps.dc_cache.outputs.cache-hit }}"
+          echo "Listing DB files:"
+          find .dependency-check-data -maxdepth 3 -type f | sort | head -100
+
+          if [ ! -f ".dependency-check-data/odc.mv.db" ]; then
+            echo "Dependency-Check DB file .dependency-check-data/odc.mv.db not found"
             exit 1
           fi
-          ls -la .dependency-check-data || true
 
       - name: Run OWASP Dependency-Check against api-auth using cached/preloaded DB
         id: dc_scan
@@ -81,7 +86,7 @@ jobs:
             -e user=$(id -u) \
             -v "$(pwd)":/src \
             -v "$(pwd)/.dependency-check-data":/usr/share/dependency-check/data \
-            owasp/dependency-check:12.1.0 \
+            owasp/dependency-check:latest \
             --data /usr/share/dependency-check/data \
             --noupdate \
             --disableOssIndex \
