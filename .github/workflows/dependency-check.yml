@@ -86,7 +86,7 @@ jobs:
             -e user=$(id -u) \
             -v "$(pwd)":/src \
             -v "$(pwd)/.dependency-check-data":/usr/share/dependency-check/data \
-            owasp/dependency-check:latest \
+            owasp/dependency-check:12.2.1 \
             --data /usr/share/dependency-check/data \
             --noupdate \
             --disableOssIndex \
