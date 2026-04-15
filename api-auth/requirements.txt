@@ -3,3 +3,5 @@ uvicorn==0.30.1
 requests==2.31.0
 urllib3==2.5.0
 idna==3.6
+flask-restx==0.5.0
+Flask-Security-Too==3.4.4

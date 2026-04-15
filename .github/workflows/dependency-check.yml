@@ -94,12 +94,10 @@ jobs:
             owasp/dependency-check:12.2.1 \
             --data /usr/share/dependency-check/data \
             --noupdate \
-            --disableOssIndex \
             --scan /src/api-auth \
             --format HTML \
             --format JSON \
-            --out /src/security/evidence/dependency-check \
-            --enableExperimental
+            --out /src/security/evidence/dependency-check
 
       - name: Validate report exists
         id: validate_report
