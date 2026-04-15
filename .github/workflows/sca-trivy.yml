@@ -10,6 +10,8 @@ on:
 jobs:
   trivy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       security_status: ${{ steps.final_status.outputs.security_status }}
       job_status: ${{ steps.final_status.outputs.job_status }}
@@ -20,7 +22,15 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Prepare evidence directory
-        run: mkdir -p security/evidence/trivy
+        run: |
+          mkdir -p security/evidence/trivy
+          mkdir -p .trivy-templates
+
+      - name: Download Trivy HTML template
+        run: |
+          curl -L \
+            -o .trivy-templates/html.tpl \
+            https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl
 
       - name: Trivy FS scan (JSON)
         id: trivy_fs_json
@@ -42,7 +52,7 @@ jobs:
           scan-type: fs
           scan-ref: ./api-auth
           format: template
-          template: "@/contrib/html.tpl"
+          template: "@.trivy-templates/html.tpl"
           output: security/evidence/trivy/trivy-report.html
           scanners: vuln,secret
           severity: HIGH,CRITICAL
@@ -72,13 +82,15 @@ jobs:
         continue-on-error: true
         run: |
           test -f security/evidence/trivy/trivy-report.json
+          test -s security/evidence/trivy/trivy-report.json
 
-      - name: Validate FS HTML report exists
+      - name: Validate FS HTML report exists and is not empty
         id: validate_fs_html
         if: always()
         continue-on-error: true
         run: |
           test -f security/evidence/trivy/trivy-report.html
+          test -s security/evidence/trivy/trivy-report.html
 
       - name: Evaluate HIGH/CRITICAL findings in FS scan
         id: fs_vuln_check
@@ -104,6 +116,7 @@ jobs:
         continue-on-error: true
         run: |
           test -f security/evidence/trivy/trivy-image-report.json
+          test -s security/evidence/trivy/trivy-image-report.json
 
       - name: Evaluate HIGH/CRITICAL findings in image scan
         id: image_vuln_check
