@@ -22,7 +22,10 @@ jobs:
 
       - name: Prepare directories
         run: |
+          mkdir -p .dependency-check-data
           mkdir -p security/evidence/dependency-check
+          chmod 755 .dependency-check-data
+          chmod 755 security/evidence/dependency-check
 
       - name: Restore Dependency-Check DB cache
         id: dc_cache
@@ -65,6 +68,7 @@ jobs:
         if: ${{ steps.dc_cache.outputs.cache-hit != 'true' }}
         run: |
           rm -rf .dependency-check-data
+          mkdir -p .dependency-check-data
           tar -xzf dependency-check-data.tar.gz
 
       - name: Verify Dependency-Check DB
@@ -83,6 +87,7 @@ jobs:
         continue-on-error: true
         run: |
           docker run --rm \
+            --user "$(id -u):$(id -g)" \
             -e user=$(id -u) \
             -v "$(pwd)":/src \
             -v "$(pwd)/.dependency-check-data":/usr/share/dependency-check/data \
