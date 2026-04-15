@@ -76,6 +76,19 @@ jobs:
           scanners: vuln,secret
           severity: HIGH,CRITICAL
 
+      - name: Trivy image scan (HTML)
+        id: trivy_image_html
+        if: ${{ hashFiles('api-auth/Dockerfile') != '' }}
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: api-auth:ci
+          format: template
+          template: "@.trivy-templates/html.tpl"
+          output: security/evidence/trivy/trivy-image-report.html
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+
       - name: Validate FS JSON report exists
         id: validate_fs_report
         if: always()
@@ -118,6 +131,14 @@ jobs:
           test -f security/evidence/trivy/trivy-image-report.json
           test -s security/evidence/trivy/trivy-image-report.json
 
+      - name: Validate image HTML report exists and is not empty
+        id: validate_image_html
+        if: ${{ always() && hashFiles('api-auth/Dockerfile') != '' }}
+        continue-on-error: true
+        run: |
+          test -f security/evidence/trivy/trivy-image-report.html
+          test -s security/evidence/trivy/trivy-image-report.html
+
       - name: Evaluate HIGH/CRITICAL findings in image scan
         id: image_vuln_check
         if: ${{ always() && hashFiles('api-auth/Dockerfile') != '' }}
@@ -145,6 +166,7 @@ jobs:
           path: |
             security/evidence/trivy/trivy-report.html
             security/evidence/trivy/trivy-report.json
+            security/evidence/trivy/trivy-image-report.html
             security/evidence/trivy/trivy-image-report.json
 
       - name: Consolidate Trivy result
@@ -161,13 +183,17 @@ jobs:
           if [ "${{ hashFiles('api-auth/Dockerfile') }}" != "" ]; then
             BUILD_IMAGE_OUTCOME="${{ steps.build_image.outcome }}"
             IMAGE_JSON_OUTCOME="${{ steps.trivy_image_json.outcome }}"
+            IMAGE_HTML_OUTCOME="${{ steps.trivy_image_html.outcome }}"
             IMAGE_JSON_REPORT_OUTCOME="${{ steps.validate_image_report.outcome }}"
+            IMAGE_HTML_REPORT_OUTCOME="${{ steps.validate_image_html.outcome }}"
             IMAGE_VULN_OUTCOME="${{ steps.image_vuln_check.outcome }}"
             IMAGE_HIGH_CRITICAL_COUNT="${{ steps.image_vuln_check.outputs.high_critical_count }}"
           else
             BUILD_IMAGE_OUTCOME="skipped"
             IMAGE_JSON_OUTCOME="skipped"
+            IMAGE_HTML_OUTCOME="skipped"
             IMAGE_JSON_REPORT_OUTCOME="skipped"
+            IMAGE_HTML_REPORT_OUTCOME="skipped"
             IMAGE_VULN_OUTCOME="skipped"
             IMAGE_HIGH_CRITICAL_COUNT="0"
           fi
@@ -180,7 +206,9 @@ jobs:
           echo "fs_high_critical_count=$FS_HIGH_CRITICAL_COUNT"
           echo "build_image_outcome=$BUILD_IMAGE_OUTCOME"
           echo "image_json_outcome=$IMAGE_JSON_OUTCOME"
+          echo "image_html_outcome=$IMAGE_HTML_OUTCOME"
           echo "image_json_report_outcome=$IMAGE_JSON_REPORT_OUTCOME"
+          echo "image_html_report_outcome=$IMAGE_HTML_REPORT_OUTCOME"
           echo "image_vuln_outcome=$IMAGE_VULN_OUTCOME"
           echo "image_high_critical_count=$IMAGE_HIGH_CRITICAL_COUNT"
 
@@ -193,7 +221,7 @@ jobs:
           fi
 
           if [ "${{ hashFiles('api-auth/Dockerfile') }}" != "" ]; then
-            if [ "$BUILD_IMAGE_OUTCOME" != "success" ] || [ "$IMAGE_JSON_OUTCOME" != "success" ] || [ "$IMAGE_JSON_REPORT_OUTCOME" != "success" ] || [ "$IMAGE_VULN_OUTCOME" != "success" ] || [ "${IMAGE_HIGH_CRITICAL_COUNT:-0}" -gt 0 ]; then
+            if [ "$BUILD_IMAGE_OUTCOME" != "success" ] || [ "$IMAGE_JSON_OUTCOME" != "success" ] || [ "$IMAGE_HTML_OUTCOME" != "success" ] || [ "$IMAGE_JSON_REPORT_OUTCOME" != "success" ] || [ "$IMAGE_HTML_REPORT_OUTCOME" != "success" ] || [ "$IMAGE_VULN_OUTCOME" != "success" ] || [ "${IMAGE_HIGH_CRITICAL_COUNT:-0}" -gt 0 ]; then
               SECURITY_STATUS="failed"
               JOB_STATUS="failure"
             fi
@@ -216,7 +244,9 @@ jobs:
           echo "| FS HIGH/CRITICAL findings count | ${{ steps.fs_vuln_check.outputs.high_critical_count }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Docker image build | ${{ steps.build_image.outcome || 'skipped' }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Image JSON scan | ${{ steps.trivy_image_json.outcome || 'skipped' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Image HTML scan | ${{ steps.trivy_image_html.outcome || 'skipped' }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Image JSON report | ${{ steps.validate_image_report.outcome || 'skipped' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Image HTML report | ${{ steps.validate_image_html.outcome || 'skipped' }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Image HIGH/CRITICAL findings count | ${{ steps.image_vuln_check.outputs.high_critical_count || '0' }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Consolidated Security Status | ${{ steps.final_status.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -343,7 +373,7 @@ jobs:
 
           $PR_BLOCK
 
-          <p>👉 The artifact contains the Trivy HTML and JSON reports.</p>
+          <p>👉 The artifact contains filesystem and image reports in HTML and JSON formats.</p>
           EOF
           )
 
