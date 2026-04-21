@@ -21,6 +21,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Debug repository files
+        run: |
+          pwd
+          ls -la
+          ls -la api-auth
+
       - name: Prepare evidence directory
         run: |
           mkdir -p security/evidence/zap
@@ -29,7 +35,7 @@ jobs:
         id: start_stack
         continue-on-error: true
         run: |
-          docker compose up -d --build
+          docker compose -f api-auth/docker-compose.yml up -d --build
 
       - name: Wait for application
         id: wait_app
@@ -142,7 +148,7 @@ jobs:
       - name: Stop application stack
         if: always()
         run: |
-          docker compose down -v
+          docker compose -f api-auth/docker-compose.yml down -v
 
   compose-slack-alert-on-fail:
     needs: [zap]
