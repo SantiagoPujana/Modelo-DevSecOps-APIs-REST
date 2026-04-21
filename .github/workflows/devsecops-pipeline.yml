@@ -1,97 +1,84 @@
-name: DevSecOps Security Pipeline
+name: Security Pipeline Master
 
 on:
   pull_request:
-  push:
-    branches: [ main ]
+    branches:
+      - main
+      - develop
   workflow_dispatch:
 
 jobs:
-  sast:
+  phase-1-sast:
     name: Phase 1 - SAST
     uses: ./.github/workflows/sast-sonarqube.yml
     secrets: inherit
 
-  dependency_check:
-    name: Phase 2 - SCA (Dependency-Check)
-    needs: [sast]
-    uses: ./.github/workflows/dependency-check.yml
-    secrets: inherit
-
-  trivy:
-    name: Phase 3 - SCA / Container Scan (Trivy)
-    needs: [dependency_check]
+  phase-2-1-sca-trivy:
+    name: Phase 2.1 - SCA / Trivy
+    needs: phase-1-sast
     uses: ./.github/workflows/sca-trivy.yml
     secrets: inherit
 
-  zap:
-    name: Phase 4 - DAST (OWASP ZAP)
-    needs: [trivy]
+  phase-2-2-sca-odc:
+    name: Phase 2.2 - SCA / OWASP Dependency-Check
+    needs: phase-1-sast
+    uses: ./.github/workflows/dependency-check.yml
+    secrets: inherit
+
+  phase-3-dast:
+    name: Phase 3 - DAST / ZAP
+    needs:
+      - phase-2-1-sca-trivy
+      - phase-2-2-sca-odc
     uses: ./.github/workflows/zap-baseline.yml
     secrets: inherit
 
-  deploy_gate:
-    name: Phase 5 - Deploy Gate
-    needs: [sast, dependency_check, trivy, zap]
+  phase-4-security-gate:
+    name: Phase 4 - Security Gate
     runs-on: ubuntu-latest
+    needs:
+      - phase-1-sast
+      - phase-2-1-sca-trivy
+      - phase-2-2-sca-odc
+      - phase-3-dast
     if: always()
-    outputs:
-      deploy_allowed: ${{ steps.evaluate.outputs.deploy_allowed }}
     steps:
-      - name: Evaluate consolidated security status
-        id: evaluate
-        env:
-          SAST_STATUS: ${{ needs.sast.outputs.security_status }}
-          DEPENDENCY_CHECK_STATUS: ${{ needs.dependency_check.outputs.security_status }}
-          TRIVY_STATUS: ${{ needs.trivy.outputs.security_status }}
-          ZAP_STATUS: ${{ needs.zap.outputs.security_status }}
+      - name: Consolidate phase results
+        id: consolidate
         run: |
+          SAST_STATUS="${{ needs.phase-1-sast.outputs.security_status }}"
+          TRIVY_STATUS="${{ needs.phase-2-1-sca-trivy.outputs.security_status }}"
+          ODC_STATUS="${{ needs.phase-2-2-sca-odc.outputs.security_status }}"
+          ZAP_STATUS="${{ needs.phase-3-dast.outputs.security_status }}"
+
           echo "SAST_STATUS=$SAST_STATUS"
-          echo "DEPENDENCY_CHECK_STATUS=$DEPENDENCY_CHECK_STATUS"
           echo "TRIVY_STATUS=$TRIVY_STATUS"
-          #echo "ZAP_STATUS=$ZAP_STATUS"
+          echo "ODC_STATUS=$ODC_STATUS"
+          echo "ZAP_STATUS=$ZAP_STATUS"
 
-          DEPLOY_ALLOWED=true
+          FINAL_STATUS="passed"
 
-          for status in "$SAST_STATUS" "$DEPENDENCY_CHECK_STATUS" "$TRIVY_STATUS" "$ZAP_STATUS"; do
-            if [ "$status" != "passed" ]; then
-              DEPLOY_ALLOWED=false
-            fi
-          done
-
-          echo "deploy_allowed=$DEPLOY_ALLOWED" >> "$GITHUB_OUTPUT"
-
-      - name: Write gate summary
-        run: |
-          echo "## DevSecOps Deploy Gate" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Phase | Status |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| SAST | ${{ needs.sast.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Dependency-Check | ${{ needs.dependency_check.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Trivy | ${{ needs.trivy.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| ZAP | ${{ needs.zap.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-
-          if [ "${{ steps.evaluate.outputs.deploy_allowed }}" = "true" ]; then
-            echo "✅ Deploy allowed." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "❌ Deploy blocked due to security findings in one or more phases." >> "$GITHUB_STEP_SUMMARY"
+          if [ "$SAST_STATUS" != "passed" ] || [ "$TRIVY_STATUS" != "passed" ] || [ "$ODC_STATUS" != "passed" ] || [ "$ZAP_STATUS" != "passed" ]; then
+            FINAL_STATUS="failed"
           fi
 
-      - name: Block deployment if security gate failed
+          echo "final_status=$FINAL_STATUS" >> "$GITHUB_OUTPUT"
+
+      - name: Write pipeline summary
         run: |
-          if [ "${{ steps.evaluate.outputs.deploy_allowed }}" != "true" ]; then
-            echo "Deployment blocked by consolidated security gate."
+          echo "## Security Pipeline Master Result" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 1 - SAST | ${{ needs.phase-1-sast.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 2.1 - SCA / Trivy | ${{ needs.phase-2-1-sca-trivy.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 2.2 - SCA / OWASP Dependency-Check | ${{ needs.phase-2-2-sca-odc.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 3 - DAST / ZAP | ${{ needs.phase-3-dast.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Final Gate | ${{ steps.consolidate.outputs.final_status }} |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail pipeline if gate failed
+        run: |
+          if [ "${{ steps.consolidate.outputs.final_status }}" != "passed" ]; then
+            echo "Security gate failed"
             exit 1
           fi
-
-  deploy:
-    name: Phase 6 - Deploy / Release
-    needs: [deploy_gate]
-    runs-on: ubuntu-latest
-    if: ${{ needs.deploy_gate.outputs.deploy_allowed == 'true' }}
-    steps:
-      - name: Simulated deploy
-        run: |
-          echo "Deploy approved. Executing simulated deployment..."
