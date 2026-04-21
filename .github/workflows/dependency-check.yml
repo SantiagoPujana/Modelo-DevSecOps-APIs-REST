@@ -121,7 +121,7 @@ jobs:
           ' security/evidence/dependency-check/dependency-check-report.json
 
       - name: Upload reports
-        if: always()
+        if: ${{ steps.vuln_check.outputs.high_medium_count != '0' }}
         uses: actions/upload-artifact@v6
         with:
           name: dependency-check-report

@@ -106,7 +106,7 @@ jobs:
 
       - name: Upload ZAP reports
         id: upload_zap_reports
-        if: always()
+        if: ${{ steps.zap_eval.outputs.high_medium_count != '0' }}
         uses: actions/upload-artifact@v6
         with:
           name: zap-reports
