@@ -76,7 +76,7 @@ jobs:
             contexts:
               - name: "Default Context"
                 urls:
-                  - "http://localhost:8000"
+                  - "http://localhost:8000/docs"
                 includePaths:
                   - "http://localhost:8000.*"
             parameters:
@@ -87,16 +87,15 @@ jobs:
           jobs:
             - type: openapi
               parameters:
-                apiFile: "http://localhost:8000/openapi.json"
+                apiUrl: "http://localhost:8000/openapi.json"
                 targetUrl: "http://localhost:8000"
 
             - type: spider
               parameters:
                 context: "Default Context"
-                user: ""
+                url: "http://localhost:8000/docs"
                 maxDuration: 5
                 maxDepth: 10
-                numberOfThreads: 4
 
             - type: passiveScan-wait
               parameters:
@@ -105,8 +104,9 @@ jobs:
             - type: activeScan
               parameters:
                 context: "Default Context"
-                user: ""
                 policy: "Default Policy"
+                defaultStrength: "High"
+                defaultThreshold: "Low"
                 maxRuleDurationInMins: 3
                 maxScanDurationInMins: 15
                 addQueryParam: true

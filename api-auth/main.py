@@ -5,6 +5,10 @@ import subprocess, hashlib, pickle, requests
 
 app = FastAPI()
 
+@app.get("/")
+def root():
+    return {"message": "API Auth vulnerable lab is running"}
+
 # 🔑 1) Credencial/secreto hardcodeado (Hardcoded secret)
 SECRET_KEY = "supersecret1234"  # Noncompliant: hardcoded secret in code
 
