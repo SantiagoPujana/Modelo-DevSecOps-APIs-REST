@@ -43,7 +43,7 @@ jobs:
         continue-on-error: true
         run: |
           for i in {1..30}; do
-            if curl -fsS http://localhost:8000/docs >/dev/null 2>&1; then
+            if curl -fsS http://localhost:8000/openapi.json >/dev/null 2>&1; then
               echo "Application is up"
               exit 0
             fi
@@ -52,6 +52,19 @@ jobs:
           done
           echo "Application did not become ready in time"
           exit 1
+
+      - name: Warm up API routes for ZAP discovery
+        id: warmup_routes
+        if: always()
+        continue-on-error: true
+        run: |
+          curl -fsS http://localhost:8000/docs >/dev/null || true
+          curl -fsS http://localhost:8000/openapi.json >/dev/null || true
+          curl -fsS "http://localhost:8000/user?username=admin" >/dev/null || true
+          curl -fsS "http://localhost:8000/read?path=../../etc/hosts" >/dev/null || true
+          curl -fsS "http://localhost:8000/exec?host=127.0.0.1" >/dev/null || true
+          curl -fsS "http://localhost:8000/hash?password=test123" >/dev/null || true
+          curl -ksS "http://localhost:8000/fetch?url=https://example.com" >/dev/null || true
 
       - name: Run ZAP Baseline
         id: zap_scan
@@ -64,7 +77,7 @@ jobs:
             -v "$(pwd)/security/evidence/zap:/zap/wrk:rw" \
             ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
-            -t http://localhost:8000 \
+            -t http://localhost:8000/openapi.json \
             -J zap-report.json \
             -r zap-report.html \
             -I
@@ -107,6 +120,7 @@ jobs:
         run: |
           START_STACK_OUTCOME="${{ steps.start_stack.outcome }}"
           WAIT_APP_OUTCOME="${{ steps.wait_app.outcome }}"
+          WARMUP_OUTCOME="${{ steps.warmup_routes.outcome }}"
           ZAP_SCAN_OUTCOME="${{ steps.zap_scan.outcome }}"
           REPORT_OUTCOME="${{ steps.validate_reports.outcome }}"
           ZAP_EVAL_OUTCOME="${{ steps.zap_eval.outcome }}"
@@ -114,6 +128,7 @@ jobs:
 
           echo "start_stack_outcome=$START_STACK_OUTCOME"
           echo "wait_app_outcome=$WAIT_APP_OUTCOME"
+          echo "warmup_outcome=$WARMUP_OUTCOME"
           echo "zap_scan_outcome=$ZAP_SCAN_OUTCOME"
           echo "report_outcome=$REPORT_OUTCOME"
           echo "zap_eval_outcome=$ZAP_EVAL_OUTCOME"
@@ -139,12 +154,13 @@ jobs:
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
           echo "| Start stack | ${{ steps.start_stack.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Wait app | ${{ steps.wait_app.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Warmup routes | ${{ steps.warmup_routes.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| ZAP scan | ${{ steps.zap_scan.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Reports validation | ${{ steps.validate_reports.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Medium/High findings count | ${{ steps.zap_eval.outputs.high_medium_count }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Consolidated Security Status | ${{ steps.final_status.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Target: http://localhost:8000" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Target: http://localhost:8000/openapi.json" >> "$GITHUB_STEP_SUMMARY"
           echo "- Reports artifact: ${{ steps.upload_zap_reports.outputs.artifact-url }}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Stop application stack
@@ -188,7 +204,7 @@ jobs:
                     [
                       {type:"header", text:{type:"plain_text", text:"🚨 ZAP Baseline FAILED 🚨"}},
                       {type:"section", text:{type:"mrkdwn", text:("*Repo:* " + $repo)}},
-                      {type:"section", text:{type:"mrkdwn", text:"*Target:* http://localhost:8000"}},
+                      {type:"section", text:{type:"mrkdwn", text:"*Target:* http://localhost:8000/openapi.json"}},
                       {
                         type:"context",
                         elements: [
@@ -264,7 +280,7 @@ jobs:
             <tr><td><b>Branch:</b></td><td>$REF_NAME</td></tr>
             <tr><td><b>Actor:</b></td><td>$ACTOR</td></tr>
             <tr><td><b>Event:</b></td><td>$EVENT_NAME</td></tr>
-            <tr><td><b>Target:</b></td><td>http://localhost:8000</td></tr>
+            <tr><td><b>Target:</b></td><td>http://localhost:8000/openapi.json</td></tr>
           </table>
 
           <p><b>Run:</b> <a href="$RUN_URL">Open execution in GitHub Actions</a></p>
