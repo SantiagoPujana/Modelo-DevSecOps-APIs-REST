@@ -30,25 +30,39 @@ jobs:
     needs:
       - phase-2-1-sca-trivy
       - phase-2-2-sca-odc
-    uses: ./.github/workflows/zap-baseline.yml
+    uses: ./.github/workflows/zap-scan.yml
     secrets: inherit
 
   phase-4-security-gate:
     name: Phase 4 - Security Gate
-    needs: phase-3-dast
+    needs:
+      - phase-1-sast
+      - phase-2-1-sca-trivy
+      - phase-2-2-sca-odc
+      - phase-3-dast
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Validate upstream phases
+      - name: Validate each phase
+        id: validate_phases
         run: |
-          echo "Phase 1 (SAST): validated upstream through phase sequencing"
-          echo "Phase 2 (SCA - Trivy + ODC): validated upstream through phase sequencing"
-          echo "Phase 3 (DAST): ${{ needs.phase-3-dast.result }}"
+          PHASE_1_STATUS="${{ needs.phase-1-sast.outputs.security_status }}"
+          PHASE_2_1_STATUS="${{ needs.phase-2-1-sca-trivy.outputs.security_status }}"
+          PHASE_2_2_STATUS="${{ needs.phase-2-2-sca-odc.outputs.security_status }}"
+          PHASE_3_STATUS="${{ needs.phase-3-dast.outputs.security_status }}"
 
-          if [ "${{ needs.phase-3-dast.result }}" != "success" ]; then
-            echo "Security gate failed"
-            exit 1
+          echo "PHASE_1_STATUS=$PHASE_1_STATUS"
+          echo "PHASE_2_1_STATUS=$PHASE_2_1_STATUS"
+          echo "PHASE_2_2_STATUS=$PHASE_2_2_STATUS"
+          echo "PHASE_3_STATUS=$PHASE_3_STATUS"
+
+          FINAL_STATUS="passed"
+
+          if [ "$PHASE_1_STATUS" != "passed" ] || [ "$PHASE_2_1_STATUS" != "passed" ] || [ "$PHASE_2_2_STATUS" != "passed" ] || [ "$PHASE_3_STATUS" != "passed" ]; then
+            FINAL_STATUS="failed"
           fi
+
+          echo "final_status=$FINAL_STATUS" >> "$GITHUB_OUTPUT"
 
       - name: Write pipeline summary
         run: |
@@ -56,7 +70,15 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Phase | Status |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Phase 1 - SAST | Completed before Phase 2 |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Phase 2 - SCA | Completed before Phase 3 |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Phase 3 - DAST | ${{ needs.phase-3-dast.result }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Phase 4 - Security Gate | Executed |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 1 - SAST | ${{ needs.phase-1-sast.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 2.1 - SCA / Trivy | ${{ needs.phase-2-1-sca-trivy.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 2.2 - SCA / Dependency-Check | ${{ needs.phase-2-2-sca-odc.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 3 - DAST / ZAP | ${{ needs.phase-3-dast.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 4 - Security Gate | ${{ steps.validate_phases.outputs.final_status }} |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail pipeline if gate failed
+        run: |
+          if [ "${{ steps.validate_phases.outputs.final_status }}" != "passed" ]; then
+            echo "Security gate failed"
+            exit 1
+          fi

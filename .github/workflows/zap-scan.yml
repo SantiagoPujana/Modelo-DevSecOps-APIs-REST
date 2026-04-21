@@ -1,4 +1,4 @@
-name: DAST (OWASP ZAP Baseline)
+name: DAST (OWASP ZAP Scan)
 
 on:
   workflow_call:
@@ -53,7 +53,7 @@ jobs:
           echo "Application did not become ready in time"
           exit 1
 
-      - name: Warm up API routes for ZAP discovery
+      - name: Warm up API routes
         id: warmup_routes
         if: always()
         continue-on-error: true
@@ -66,7 +66,70 @@ jobs:
           curl -fsS "http://localhost:8000/hash?password=test123" >/dev/null || true
           curl -ksS "http://localhost:8000/fetch?url=https://example.com" >/dev/null || true
 
-      - name: Run ZAP Baseline
+      - name: Generate ZAP Automation Framework plan
+        id: generate_plan
+        if: always()
+        continue-on-error: true
+        run: |
+          cat > security/evidence/zap/zap.yaml <<'EOF'
+          env:
+            contexts:
+              - name: "Default Context"
+                urls:
+                  - "http://localhost:8000"
+                includePaths:
+                  - "http://localhost:8000.*"
+            parameters:
+              failOnError: false
+              failOnWarning: false
+              progressToStdout: true
+
+          jobs:
+            - type: openapi
+              parameters:
+                apiFile: "http://localhost:8000/openapi.json"
+                targetUrl: "http://localhost:8000"
+
+            - type: spider
+              parameters:
+                context: "Default Context"
+                user: ""
+                maxDuration: 5
+                maxDepth: 10
+                numberOfThreads: 4
+
+            - type: passiveScan-wait
+              parameters:
+                maxDuration: 10
+
+            - type: activeScan
+              parameters:
+                context: "Default Context"
+                user: ""
+                policy: "Default Policy"
+                maxRuleDurationInMins: 3
+                maxScanDurationInMins: 15
+                addQueryParam: true
+                threadPerHost: 4
+
+            - type: passiveScan-wait
+              parameters:
+                maxDuration: 10
+
+            - type: report
+              parameters:
+                template: "traditional-html"
+                reportDir: "/zap/wrk"
+                reportFile: "zap-report.html"
+
+            - type: report
+              parameters:
+                template: "traditional-json"
+                reportDir: "/zap/wrk"
+                reportFile: "zap-report.json"
+          EOF
+
+      - name: Run ZAP Automation Framework scan
         id: zap_scan
         if: always()
         continue-on-error: true
@@ -76,11 +139,7 @@ jobs:
             --network host \
             -v "$(pwd)/security/evidence/zap:/zap/wrk:rw" \
             ghcr.io/zaproxy/zaproxy:stable \
-            zap-baseline.py \
-            -t http://localhost:8000/openapi.json \
-            -J zap-report.json \
-            -r zap-report.html \
-            -I
+            zap.sh -cmd -autorun /zap/wrk/zap.yaml
 
       - name: Validate ZAP reports
         id: validate_reports
@@ -98,9 +157,16 @@ jobs:
         continue-on-error: true
         run: |
           MEDIUM_HIGH_COUNT=$(jq '[.site[]?.alerts[]? | select((.riskcode|tonumber) >= 2)] | length' security/evidence/zap/zap-report.json)
+          LOW_COUNT=$(jq '[.site[]?.alerts[]? | select((.riskcode|tonumber) == 1)] | length' security/evidence/zap/zap-report.json)
+          INFO_COUNT=$(jq '[.site[]?.alerts[]? | select((.riskcode|tonumber) == 0)] | length' security/evidence/zap/zap-report.json)
 
           echo "high_medium_count=$MEDIUM_HIGH_COUNT" >> "$GITHUB_OUTPUT"
+          echo "low_count=$LOW_COUNT" >> "$GITHUB_OUTPUT"
+          echo "info_count=$INFO_COUNT" >> "$GITHUB_OUTPUT"
+
           echo "Detected Medium/High ZAP alerts: $MEDIUM_HIGH_COUNT"
+          echo "Detected Low ZAP alerts: $LOW_COUNT"
+          echo "Detected Info ZAP alerts: $INFO_COUNT"
 
           test "$MEDIUM_HIGH_COUNT" -eq 0
 
@@ -113,6 +179,7 @@ jobs:
           path: |
             security/evidence/zap/zap-report.html
             security/evidence/zap/zap-report.json
+            security/evidence/zap/zap.yaml
 
       - name: Consolidate ZAP result
         id: final_status
@@ -121,6 +188,7 @@ jobs:
           START_STACK_OUTCOME="${{ steps.start_stack.outcome }}"
           WAIT_APP_OUTCOME="${{ steps.wait_app.outcome }}"
           WARMUP_OUTCOME="${{ steps.warmup_routes.outcome }}"
+          PLAN_OUTCOME="${{ steps.generate_plan.outcome }}"
           ZAP_SCAN_OUTCOME="${{ steps.zap_scan.outcome }}"
           REPORT_OUTCOME="${{ steps.validate_reports.outcome }}"
           ZAP_EVAL_OUTCOME="${{ steps.zap_eval.outcome }}"
@@ -129,6 +197,7 @@ jobs:
           echo "start_stack_outcome=$START_STACK_OUTCOME"
           echo "wait_app_outcome=$WAIT_APP_OUTCOME"
           echo "warmup_outcome=$WARMUP_OUTCOME"
+          echo "plan_outcome=$PLAN_OUTCOME"
           echo "zap_scan_outcome=$ZAP_SCAN_OUTCOME"
           echo "report_outcome=$REPORT_OUTCOME"
           echo "zap_eval_outcome=$ZAP_EVAL_OUTCOME"
@@ -137,7 +206,7 @@ jobs:
           SECURITY_STATUS="passed"
           JOB_STATUS="success"
 
-          if [ "$START_STACK_OUTCOME" != "success" ] || [ "$WAIT_APP_OUTCOME" != "success" ] || [ "$ZAP_SCAN_OUTCOME" != "success" ] || [ "$REPORT_OUTCOME" != "success" ] || [ "$ZAP_EVAL_OUTCOME" != "success" ] || [ "${ALERT_COUNT:-0}" -gt 0 ]; then
+          if [ "$START_STACK_OUTCOME" != "success" ] || [ "$WAIT_APP_OUTCOME" != "success" ] || [ "$PLAN_OUTCOME" != "success" ] || [ "$ZAP_SCAN_OUTCOME" != "success" ] || [ "$REPORT_OUTCOME" != "success" ] || [ "$ZAP_EVAL_OUTCOME" != "success" ] || [ "${ALERT_COUNT:-0}" -gt 0 ]; then
             SECURITY_STATUS="failed"
             JOB_STATUS="failure"
           fi
@@ -148,16 +217,19 @@ jobs:
       - name: Write summary
         if: always()
         run: |
-          echo "## ZAP Baseline Result" >> "$GITHUB_STEP_SUMMARY"
+          echo "## ZAP Automation Framework Result" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Control | Result |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
           echo "| Start stack | ${{ steps.start_stack.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Wait app | ${{ steps.wait_app.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Warmup routes | ${{ steps.warmup_routes.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Generate AF plan | ${{ steps.generate_plan.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| ZAP scan | ${{ steps.zap_scan.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Reports validation | ${{ steps.validate_reports.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Medium/High findings count | ${{ steps.zap_eval.outputs.high_medium_count }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Low findings count | ${{ steps.zap_eval.outputs.low_count }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Informational findings count | ${{ steps.zap_eval.outputs.info_count }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Consolidated Security Status | ${{ steps.final_status.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- Target: http://localhost:8000/openapi.json" >> "$GITHUB_STEP_SUMMARY"
@@ -202,7 +274,7 @@ jobs:
                   color: "#D32F2F",
                   blocks: (
                     [
-                      {type:"header", text:{type:"plain_text", text:"🚨 ZAP Baseline FAILED 🚨"}},
+                      {type:"header", text:{type:"plain_text", text:"🚨 ZAP Scan FAILED 🚨"}},
                       {type:"section", text:{type:"mrkdwn", text:("*Repo:* " + $repo)}},
                       {type:"section", text:{type:"mrkdwn", text:"*Target:* http://localhost:8000/openapi.json"}},
                       {
@@ -273,7 +345,7 @@ jobs:
           fi
 
           BODY=$(cat <<EOF
-          <h2>🚨 ZAP Baseline FAILED 🚨</h2>
+          <h2>🚨 ZAP Scan FAILED 🚨</h2>
 
           <table border="0" cellpadding="5">
             <tr><td><b>Repo:</b></td><td>$REPO</td></tr>
@@ -313,5 +385,5 @@ jobs:
       send_slack: true
       slack_payload_b64: ${{ needs.compose-slack-alert-on-fail.outputs.slack_payload_b64 }}
       send_email: true
-      email_subject: "[ALERT] ZAP baseline failed - ${{ github.repository }}"
+      email_subject: "[ALERT] ZAP scan failed - ${{ github.repository }}"
       email_body_b64: ${{ needs.compose-email-alert-on-fail.outputs.email_body_b64 }}
