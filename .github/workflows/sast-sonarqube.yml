@@ -261,8 +261,7 @@ jobs:
       email_body_b64: ${{ steps.email_msg.outputs.email_body_b64 }}
 
   alerts:
-    needs: [sast, compose-slack-alert-on-fail, compose-email-alert-on-fail]
-    if: ${{ needs.sast.outputs.security_status == 'failed' }}
+    needs: [compose-slack-alert-on-fail, compose-email-alert-on-fail]
     uses: ./.github/workflows/alerts-send.yml
     secrets:
       SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}

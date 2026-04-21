@@ -30,6 +30,7 @@ jobs:
       - name: Prepare evidence directory
         run: |
           mkdir -p security/evidence/zap
+          chmod 777 security/evidence/zap
 
       - name: Start application stack
         id: start_stack
@@ -58,6 +59,7 @@ jobs:
         continue-on-error: true
         run: |
           docker run --rm \
+            --user root \
             --network host \
             -v "$(pwd)/security/evidence/zap:/zap/wrk:rw" \
             ghcr.io/zaproxy/zaproxy:stable \
@@ -280,8 +282,7 @@ jobs:
       email_body_b64: ${{ steps.email_msg.outputs.email_body_b64 }}
 
   alerts:
-    needs: [zap, compose-slack-alert-on-fail, compose-email-alert-on-fail]
-    if: ${{ needs.zap.outputs.security_status == 'failed' }}
+    needs: [compose-slack-alert-on-fail, compose-email-alert-on-fail]
     uses: ./.github/workflows/alerts-send.yml
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

@@ -1,4 +1,4 @@
-name: devsecops-pipeline.yml
+name: DevSecOps Pipeline Main Workflow
 
 on:
   pull_request:
