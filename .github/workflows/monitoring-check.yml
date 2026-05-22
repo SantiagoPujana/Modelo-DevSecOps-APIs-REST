@@ -127,9 +127,7 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          curl -fsS "http://localhost:9090/api/v1/targets" -o prometheus-targets.json
-
-          python3 - <<'PY'
+          cat > check_targets.py <<'PY'
           import json
           import sys
 
@@ -167,6 +165,22 @@ jobs:
               sys.exit(1)
           PY
 
+          for i in {1..12}; do
+            echo "Checking Prometheus targets (attempt $i/12)..."
+            curl -fsS "http://localhost:9090/api/v1/targets" -o prometheus-targets.json
+
+            if python3 check_targets.py; then
+              echo "All required targets are up."
+              exit 0
+            fi
+
+            echo "Targets not ready yet. Waiting 5 seconds..."
+            sleep 5
+          done
+
+          echo "Prometheus targets did not become healthy in time."
+          exit 1
+
       - name: Check Prometheus alerts endpoint
         id: check_alerts_endpoint
         if: always()
@@ -180,6 +194,16 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
+          if [ ! -f prometheus-targets.json ]; then
+            echo "prometheus-targets.json not found, skipping summary generation."
+            printf '%s\n' \
+              '| Job | Health | Scrape URL | Last Error |' \
+              '|---|---|---|---|' \
+              '| - | - | - | prometheus-targets.json not available |' \
+              > monitoring-targets-summary.md
+            exit 0
+          fi
+
           python3 - <<'PY'
           import json
 
@@ -199,11 +223,12 @@ jobs:
 
           rows.sort(key=lambda x: x[0])
 
-          with open("monitoring-targets-summary.md", "w", encoding="utf-8") as out:
+          with open("monitoring-targets-summary.md", "w", encoding="utf-8", newline="\n") as out:
               out.write("| Job | Health | Scrape URL | Last Error |\\n")
               out.write("|---|---|---|---|\\n")
               for job, health, scrape_url, last_error in rows:
-                  out.write(f"| {job} | {health} | {scrape_url} | {last_error or '-'} |\\n")
+                  safe_error = (last_error or "-").replace("\\n", " ").replace("\\r", " ")
+                  out.write(f"| {job} | {health} | {scrape_url} | {safe_error} |\\n")
           PY
 
       - name: Collect diagnostics
