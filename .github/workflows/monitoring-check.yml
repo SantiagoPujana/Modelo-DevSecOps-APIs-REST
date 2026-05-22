@@ -127,50 +127,49 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
+          cat > check_targets.py <<'PY'
+          import json
+          import sys
+
+          with open("prometheus-targets.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
+
+          active = data.get("data", {}).get("activeTargets", [])
+          required_jobs = {"api-auth", "prometheus", "node-exporter"}
+
+          job_states = {}
+          for target in active:
+              labels = target.get("labels", {})
+              job = labels.get("job")
+              health = target.get("health")
+              if job:
+                  job_states[job] = health
+
+          missing = []
+          down = []
+
+          for job in required_jobs:
+              if job not in job_states:
+                  missing.append(job)
+              elif job_states[job] != "up":
+                  down.append((job, job_states[job]))
+
+          print("Detected job states:", job_states)
+
+          if missing:
+              print("Missing jobs:", missing)
+          if down:
+              print("Down jobs:", down)
+
+          if missing or down:
+              sys.exit(1)
+          PY
+
           for i in {1..12}; do
             echo "Checking Prometheus targets (attempt $i/12)..."
             curl -fsS "http://localhost:9090/api/v1/targets" -o prometheus-targets.json
 
-            python3 - <<'PY'
-            import json
-            import sys
-
-            with open("prometheus-targets.json", "r", encoding="utf-8") as f:
-                data = json.load(f)
-
-            active = data.get("data", {}).get("activeTargets", [])
-            required_jobs = {"api-auth", "prometheus", "node-exporter"}
-
-            job_states = {}
-            for target in active:
-                labels = target.get("labels", {})
-                job = labels.get("job")
-                health = target.get("health")
-                if job:
-                    job_states[job] = health
-
-            missing = []
-            down = []
-
-            for job in required_jobs:
-                if job not in job_states:
-                    missing.append(job)
-                elif job_states[job] != "up":
-                    down.append((job, job_states[job]))
-
-            print("Detected job states:", job_states)
-
-            if missing:
-                print("Missing jobs:", missing)
-            if down:
-                print("Down jobs:", down)
-
-            if missing or down:
-                sys.exit(1)
-            PY
-
-            STATUS=$?
-            if [ "$STATUS" -eq 0 ]; then
+            if python3 check_targets.py; then
               echo "All required targets are up."
               exit 0
             fi
@@ -195,6 +194,16 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
+          if [ ! -f prometheus-targets.json ]; then
+            echo "prometheus-targets.json not found, skipping summary generation."
+            cat > monitoring-targets-summary.md <<'EOF'
+            | Job | Health | Scrape URL | Last Error |
+            |---|---|---|---|
+            | - | - | - | prometheus-targets.json not available |
+            EOF
+            exit 0
+          fi
+
           python3 - <<'PY'
           import json
 
