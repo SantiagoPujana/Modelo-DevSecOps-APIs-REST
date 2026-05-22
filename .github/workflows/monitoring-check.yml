@@ -1,0 +1,330 @@
+name: Monitoring Check
+
+on:
+  workflow_call:
+    outputs:
+      monitoring_status:
+        description: "Monitoring result: passed|failed"
+        value: ${{ jobs.monitoring-check.outputs.monitoring_status }}
+
+jobs:
+  monitoring-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      monitoring_status: ${{ steps.final_status.outputs.monitoring_status }}
+      job_status: ${{ steps.final_status.outputs.job_status }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Create shared Docker network
+        id: create_network
+        continue-on-error: true
+        run: |
+          docker network create devsecops-net || true
+          docker network ls
+
+      - name: Start api-auth
+        id: start_api
+        continue-on-error: true
+        run: |
+          docker compose -f api-auth/docker-compose.yml up -d --build
+
+      - name: Wait for api-auth root
+        id: wait_api_root
+        continue-on-error: true
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:8000/ >/dev/null 2>&1; then
+              echo "api-auth root is up"
+              exit 0
+            fi
+            echo "Waiting for api-auth root..."
+            sleep 5
+          done
+          echo "api-auth root did not become ready in time"
+          exit 1
+
+      - name: Wait for api-auth metrics
+        id: wait_api_metrics
+        continue-on-error: true
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:8000/metrics >/dev/null 2>&1; then
+              echo "api-auth metrics is up"
+              exit 0
+            fi
+            echo "Waiting for api-auth metrics..."
+            sleep 5
+          done
+          echo "api-auth metrics did not become ready in time"
+          exit 1
+
+      - name: Start observability stack
+        id: start_observability
+        continue-on-error: true
+        run: |
+          docker compose -f observability/docker-compose.yml up -d
+
+      - name: Wait for Prometheus
+        id: wait_prometheus
+        continue-on-error: true
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:9090/-/ready >/dev/null 2>&1; then
+              echo "Prometheus is ready"
+              exit 0
+            fi
+            echo "Waiting for Prometheus..."
+            sleep 5
+          done
+          echo "Prometheus did not become ready in time"
+          exit 1
+
+      - name: Wait for Grafana
+        id: wait_grafana
+        continue-on-error: true
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:3000/api/health >/dev/null 2>&1; then
+              echo "Grafana is ready"
+              exit 0
+            fi
+            echo "Waiting for Grafana..."
+            sleep 5
+          done
+          echo "Grafana did not become ready in time"
+          exit 1
+
+      - name: Generate API traffic
+        id: generate_traffic
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ -f tests/generate_api_traffic.py ]; then
+            python3 -m pip install --upgrade pip
+            if [ -f tests/requirements.txt ]; then
+              python3 -m pip install -r tests/requirements.txt
+            else
+              python3 -m pip install requests
+            fi
+
+            python3 tests/generate_api_traffic.py \
+              --base-url http://localhost:8000 \
+              --include-failures \
+              --rounds 5 \
+              --sleep 0.1 \
+              --random-order | tee monitoring-traffic.log
+          else
+            echo "Traffic generator script not found, skipping."
+          fi
+
+      - name: Check Prometheus targets
+        id: check_targets
+        if: always()
+        continue-on-error: true
+        run: |
+          curl -fsS "http://localhost:9090/api/v1/targets" -o prometheus-targets.json
+
+          python3 - <<'PY'
+          import json
+          import sys
+
+          with open("prometheus-targets.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
+
+          active = data.get("data", {}).get("activeTargets", [])
+          required_jobs = {"api-auth", "prometheus", "node-exporter"}
+
+          job_states = {}
+          for target in active:
+              labels = target.get("labels", {})
+              job = labels.get("job")
+              health = target.get("health")
+              if job:
+                  job_states[job] = health
+
+          missing = []
+          down = []
+
+          for job in required_jobs:
+              if job not in job_states:
+                  missing.append(job)
+              elif job_states[job] != "up":
+                  down.append((job, job_states[job]))
+
+          print("Detected job states:", job_states)
+
+          if missing:
+              print("Missing jobs:", missing)
+          if down:
+              print("Down jobs:", down)
+
+          if missing or down:
+              sys.exit(1)
+          PY
+
+      - name: Check Prometheus alerts endpoint
+        id: check_alerts_endpoint
+        if: always()
+        continue-on-error: true
+        run: |
+          curl -fsS http://localhost:9090/api/v1/alerts -o prometheus-alerts.json
+          cat prometheus-alerts.json | head -c 2000 || true
+
+      - name: Build monitoring summary data
+        id: build_summary
+        if: always()
+        continue-on-error: true
+        run: |
+          python3 - <<'PY'
+          import json
+
+          with open("prometheus-targets.json", "r", encoding="utf-8") as f:
+              targets_data = json.load(f)
+
+          active = targets_data.get("data", {}).get("activeTargets", [])
+
+          rows = []
+          for target in active:
+              labels = target.get("labels", {})
+              job = labels.get("job", "unknown")
+              health = target.get("health", "unknown")
+              scrape_url = target.get("scrapeUrl", "")
+              last_error = target.get("lastError", "")
+              rows.append((job, health, scrape_url, last_error))
+
+          rows.sort(key=lambda x: x[0])
+
+          with open("monitoring-targets-summary.md", "w", encoding="utf-8") as out:
+              out.write("| Job | Health | Scrape URL | Last Error |\\n")
+              out.write("|---|---|---|---|\\n")
+              for job, health, scrape_url, last_error in rows:
+                  out.write(f"| {job} | {health} | {scrape_url} | {last_error or '-'} |\\n")
+          PY
+
+      - name: Collect diagnostics
+        id: diagnostics
+        if: always()
+        continue-on-error: true
+        run: |
+          mkdir -p monitoring-evidence
+
+          docker ps -a > monitoring-evidence/docker-ps.txt || true
+          docker network ls > monitoring-evidence/docker-networks.txt || true
+
+          docker compose -f api-auth/docker-compose.yml ps > monitoring-evidence/api-auth-compose-ps.txt 2>&1 || true
+          docker compose -f observability/docker-compose.yml ps > monitoring-evidence/observability-compose-ps.txt 2>&1 || true
+
+          curl -fsS http://localhost:8000/ -o monitoring-evidence/api-root-response.json || true
+          curl -fsS http://localhost:8000/metrics -o monitoring-evidence/api-metrics.txt || true
+          curl -fsS http://localhost:9090/api/v1/targets -o monitoring-evidence/prometheus-targets.json || true
+          curl -fsS http://localhost:9090/api/v1/alerts -o monitoring-evidence/prometheus-alerts.json || true
+          curl -fsS http://localhost:3000/api/health -o monitoring-evidence/grafana-health.json || true
+          curl -fsS http://localhost:9100/metrics -o monitoring-evidence/node-exporter-metrics.txt || true
+
+          docker inspect api-auth > monitoring-evidence/api-auth-inspect.json 2>&1 || true
+          docker inspect prometheus > monitoring-evidence/prometheus-inspect.json 2>&1 || true
+          docker inspect grafana > monitoring-evidence/grafana-inspect.json 2>&1 || true
+          docker inspect node-exporter > monitoring-evidence/node-exporter-inspect.json 2>&1 || true
+
+          docker logs api-auth > monitoring-evidence/api-auth.log 2>&1 || true
+          docker logs prometheus > monitoring-evidence/prometheus.log 2>&1 || true
+          docker logs grafana > monitoring-evidence/grafana.log 2>&1 || true
+          docker logs node-exporter > monitoring-evidence/node-exporter.log 2>&1 || true
+
+          if [ -f prometheus-targets.json ]; then
+            cp prometheus-targets.json monitoring-evidence/prometheus-targets-raw.json || true
+          fi
+          if [ -f prometheus-alerts.json ]; then
+            cp prometheus-alerts.json monitoring-evidence/prometheus-alerts-raw.json || true
+          fi
+          if [ -f monitoring-targets-summary.md ]; then
+            cp monitoring-targets-summary.md monitoring-evidence/monitoring-targets-summary.md || true
+          fi
+          cp monitoring-traffic.log monitoring-evidence/monitoring-traffic.log || true
+
+      - name: Upload monitoring evidence on failure
+        id: upload_evidence
+        if: ${{ always() && (steps.wait_api_root.outcome != 'success' || steps.wait_api_metrics.outcome != 'success' || steps.wait_prometheus.outcome != 'success' || steps.wait_grafana.outcome != 'success' || steps.check_targets.outcome != 'success') }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: monitoring-evidence
+          path: monitoring-evidence
+
+      - name: Consolidate monitoring result
+        id: final_status
+        if: always()
+        run: |
+          CREATE_NETWORK="${{ steps.create_network.outcome }}"
+          START_API="${{ steps.start_api.outcome }}"
+          WAIT_API_ROOT="${{ steps.wait_api_root.outcome }}"
+          WAIT_API_METRICS="${{ steps.wait_api_metrics.outcome }}"
+          START_OBS="${{ steps.start_observability.outcome }}"
+          WAIT_PROM="${{ steps.wait_prometheus.outcome }}"
+          WAIT_GRAFANA="${{ steps.wait_grafana.outcome }}"
+          CHECK_TARGETS="${{ steps.check_targets.outcome }}"
+
+          echo "create_network=$CREATE_NETWORK"
+          echo "start_api=$START_API"
+          echo "wait_api_root=$WAIT_API_ROOT"
+          echo "wait_api_metrics=$WAIT_API_METRICS"
+          echo "start_observability=$START_OBS"
+          echo "wait_prometheus=$WAIT_PROM"
+          echo "wait_grafana=$WAIT_GRAFANA"
+          echo "check_targets=$CHECK_TARGETS"
+
+          MONITORING_STATUS="passed"
+          JOB_STATUS="success"
+
+          if [ "$START_API" != "success" ] || \
+             [ "$WAIT_API_ROOT" != "success" ] || \
+             [ "$WAIT_API_METRICS" != "success" ] || \
+             [ "$START_OBS" != "success" ] || \
+             [ "$WAIT_PROM" != "success" ] || \
+             [ "$WAIT_GRAFANA" != "success" ] || \
+             [ "$CHECK_TARGETS" != "success" ]; then
+            MONITORING_STATUS="failed"
+            JOB_STATUS="failure"
+          fi
+
+          echo "monitoring_status=$MONITORING_STATUS" >> "$GITHUB_OUTPUT"
+          echo "job_status=$JOB_STATUS" >> "$GITHUB_OUTPUT"
+
+      - name: Write summary
+        if: always()
+        run: |
+          echo "## Monitoring Check Result" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Control | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| api-auth start | ${{ steps.start_api.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| api-auth root | ${{ steps.wait_api_root.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| api-auth metrics | ${{ steps.wait_api_metrics.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| observability start | ${{ steps.start_observability.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Prometheus ready | ${{ steps.wait_prometheus.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Grafana ready | ${{ steps.wait_grafana.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Traffic generation | ${{ steps.generate_traffic.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Prometheus targets | ${{ steps.check_targets.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Alerts endpoint | ${{ steps.check_alerts_endpoint.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Monitoring status | ${{ steps.final_status.outputs.monitoring_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Prometheus Targets" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f monitoring-targets-summary.md ]; then
+            cat monitoring-targets-summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No target summary available." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Stop observability stack
+        if: always()
+        run: |
+          docker compose -f observability/docker-compose.yml down -v || true
+
+      - name: Stop api-auth
+        if: always()
+        run: |
+          docker compose -f api-auth/docker-compose.yml down -v || true

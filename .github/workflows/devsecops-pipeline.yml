@@ -1,0 +1,133 @@
+name: DevSecOps Pipeline Main Workflow
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  phase-1-sast:
+    name: Phase 1 - SAST / sast
+    uses: ./.github/workflows/sast-sonarqube.yml
+    secrets: inherit
+
+  phase-2-1-sca-trivy:
+    name: Phase 2.1 - SCA / trivy
+    needs: phase-1-sast
+    uses: ./.github/workflows/sca-trivy.yml
+    secrets: inherit
+
+  phase-2-2-sca-odc:
+    name: Phase 2.2 - SCA / dependency-check
+    needs: phase-1-sast
+    uses: ./.github/workflows/dependency-check.yml
+    secrets: inherit
+
+  phase-3-dast:
+    name: Phase 3 - DAST / zap
+    needs:
+      - phase-2-1-sca-trivy
+      - phase-2-2-sca-odc
+    uses: ./.github/workflows/zap-scan.yml
+    secrets: inherit
+
+  phase-4-security-gate:
+    name: Phase 4 - Security Gate
+    needs:
+      - phase-1-sast
+      - phase-2-1-sca-trivy
+      - phase-2-2-sca-odc
+      - phase-3-dast
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate each phase
+        id: validate_phases
+        run: |
+          PHASE_1_STATUS="${{ needs.phase-1-sast.outputs.security_status }}"
+          PHASE_2_1_STATUS="${{ needs.phase-2-1-sca-trivy.outputs.security_status }}"
+          PHASE_2_2_STATUS="${{ needs.phase-2-2-sca-odc.outputs.security_status }}"
+          PHASE_3_STATUS="${{ needs.phase-3-dast.outputs.security_status }}"
+
+          echo "PHASE_1_STATUS=$PHASE_1_STATUS"
+          echo "PHASE_2_1_STATUS=$PHASE_2_1_STATUS"
+          echo "PHASE_2_2_STATUS=$PHASE_2_2_STATUS"
+          echo "PHASE_3_STATUS=$PHASE_3_STATUS"
+
+          FINAL_STATUS="passed"
+
+          if [ "$PHASE_1_STATUS" != "passed" ] || [ "$PHASE_2_1_STATUS" != "passed" ] || [ "$PHASE_2_2_STATUS" != "passed" ] || [ "$PHASE_3_STATUS" != "passed" ]; then
+            FINAL_STATUS="failed"
+          fi
+
+          echo "final_status=$FINAL_STATUS" >> "$GITHUB_OUTPUT"
+
+      - name: Write pipeline summary
+        run: |
+          echo "## Security Pipeline Result" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 1 - SAST | ${{ needs.phase-1-sast.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 2.1 - SCA / Trivy | ${{ needs.phase-2-1-sca-trivy.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 2.2 - SCA / Dependency-Check | ${{ needs.phase-2-2-sca-odc.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 3 - DAST / ZAP | ${{ needs.phase-3-dast.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 4 - Security Gate | ${{ steps.validate_phases.outputs.final_status }} |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail pipeline if gate failed
+        run: |
+          if [ "${{ steps.validate_phases.outputs.final_status }}" != "passed" ]; then
+            echo "Security gate failed"
+            exit 1
+          fi
+
+  phase-5-deploy-policy:
+    name: Phase 5 - Deploy Policy Check
+    needs: phase-4-security-gate
+    uses: ./.github/workflows/deploy-policy-check.yml
+    secrets: inherit
+    with:
+      target_environment: prod
+      release_approved: "true"
+
+  phase-6-monitoring:
+    name: Phase 6 - Monitoring Check
+    needs: phase-5-deploy-policy
+    if: ${{ needs.phase-5-deploy-policy.outputs.deploy_policy_status == 'passed' }}
+    uses: ./.github/workflows/monitoring-check.yml
+    secrets: inherit
+
+  phase-7-final-gate:
+    name: Phase 7 - Final Pipeline Gate
+    needs:
+      - phase-5-deploy-policy
+      - phase-6-monitoring
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate final phases
+        run: |
+          DEPLOY_STATUS="${{ needs.phase-5-deploy-policy.outputs.deploy_policy_status }}"
+          MONITORING_RESULT="${{ needs.phase-6-monitoring.result }}"
+          MONITORING_STATUS="${{ needs.phase-6-monitoring.outputs.monitoring_status }}"
+
+          echo "DEPLOY_STATUS=$DEPLOY_STATUS"
+          echo "MONITORING_RESULT=$MONITORING_RESULT"
+          echo "MONITORING_STATUS=$MONITORING_STATUS"
+
+          if [ "$DEPLOY_STATUS" != "passed" ] || [ "$MONITORING_RESULT" != "success" ] || [ "$MONITORING_STATUS" != "passed" ]; then
+            echo "Final pipeline gate failed"
+            exit 1
+          fi
+
+      - name: Write final summary
+        run: |
+          echo "## Final Pipeline Result" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 5 - Deploy Policy | ${{ needs.phase-5-deploy-policy.outputs.deploy_policy_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 6 - Monitoring result | ${{ needs.phase-6-monitoring.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 6 - Monitoring status | ${{ needs.phase-6-monitoring.outputs.monitoring_status }} |" >> "$GITHUB_STEP_SUMMARY"

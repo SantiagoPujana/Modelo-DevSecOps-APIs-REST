@@ -1,0 +1,29 @@
+groups:
+  - name: observability-alerts
+    rules:
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Target caído"
+          description: "El target {{ $labels.instance }} del job {{ $labels.job }} no responde."
+
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100) > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Uso alto de CPU"
+          description: "La instancia {{ $labels.instance }} supera 80% de CPU."
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Uso alto de memoria"
+          description: "La instancia {{ $labels.instance }} supera 80% de uso de memoria."

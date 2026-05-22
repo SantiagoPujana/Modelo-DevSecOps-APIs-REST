@@ -79,6 +79,8 @@ jobs:
 
       - name: Materialize email body (b64 → file)
         id: b64_body
+        env:
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
         run: |
           printf '%s' '${{ inputs.email_body_b64 }}' | base64 --decode > email.html
 
@@ -87,7 +89,7 @@ jobs:
 
       - name: Email - send
         if: ${{ steps.gate.outputs.skip == 'false' && inputs.send_email && inputs.email_subject != '' && inputs.email_body_b64 != '' }}
-        uses: dawidd6/action-send-mail@v6
+        uses: dawidd6/action-send-mail@v16
         with:
           server_address: ${{ secrets.SMTP_HOST }}
           server_port: ${{ secrets.SMTP_PORT }}

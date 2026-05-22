@@ -1,0 +1,12 @@
+{
+  "deploy": {
+    "allowed_envs": ["dev", "qa", "prod"],
+    "allowed_events": ["workflow_dispatch"],
+    "allowed_release_branch": "main",
+    "authorized_prod_actors": [
+      "SantiagoPujana",
+      "santiago-pujana",
+      "admin-user"
+    ]
+  }
+}

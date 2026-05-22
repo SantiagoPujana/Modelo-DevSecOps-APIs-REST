@@ -1,9 +1,14 @@
 # ❌ Código intencionalmente vulnerable para pruebas de SAST
 from fastapi import FastAPI, Query, Body
+from prometheus_fastapi_instrumentator import Instrumentator
 import sqlite3
-import os, subprocess, hashlib, pickle, requests
+import subprocess, hashlib, pickle, requests
 
 app = FastAPI()
+
+@app.get("/")
+def root():
+    return {"message": "API Auth vulnerable lab is running"}
 
 # 🔑 1) Credencial/secreto hardcodeado (Hardcoded secret)
 SECRET_KEY = "supersecret1234"  # Noncompliant: hardcoded secret in code
@@ -66,3 +71,6 @@ def insecure_fetch(url: str = Query(..., description="Try: https://example.com")
 
 # 🎯 8) CORS abierto (si lo añadieras con fastapi.middleware.cors, allow_origins=['*'])
 #     Sonar lo suele marcar como hotspot de seguridad (revisar configuración).
+
+# 📈 Instrumentación Prometheus
+Instrumentator().instrument(app).expose(app)

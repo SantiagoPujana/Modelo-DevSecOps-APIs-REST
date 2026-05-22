@@ -1,0 +1,15 @@
+services:
+  api-auth:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api-auth
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    networks:
+      - devsecops-net
+
+networks:
+  devsecops-net:
+    external: true
