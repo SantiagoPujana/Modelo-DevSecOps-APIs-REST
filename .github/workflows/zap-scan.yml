@@ -179,7 +179,6 @@ jobs:
           path: |
             security/evidence/zap/zap-report.html
             security/evidence/zap/zap-report.json
-            security/evidence/zap/zap.yaml
 
       - name: Consolidate ZAP result
         id: final_status

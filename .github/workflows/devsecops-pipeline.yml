@@ -82,3 +82,52 @@ jobs:
             echo "Security gate failed"
             exit 1
           fi
+
+  phase-5-deploy-policy:
+    name: Phase 5 - Deploy Policy Check
+    needs: phase-4-security-gate
+    uses: ./.github/workflows/deploy-policy-check.yml
+    secrets: inherit
+    with:
+      target_environment: prod
+      release_approved: "true"
+
+  phase-6-monitoring:
+    name: Phase 6 - Monitoring Check
+    needs: phase-5-deploy-policy
+    if: ${{ needs.phase-5-deploy-policy.outputs.deploy_policy_status == 'passed' }}
+    uses: ./.github/workflows/monitoring-check.yml
+    secrets: inherit
+
+  phase-7-final-gate:
+    name: Phase 7 - Final Pipeline Gate
+    needs:
+      - phase-5-deploy-policy
+      - phase-6-monitoring
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate final phases
+        run: |
+          DEPLOY_STATUS="${{ needs.phase-5-deploy-policy.outputs.deploy_policy_status }}"
+          MONITORING_RESULT="${{ needs.phase-6-monitoring.result }}"
+          MONITORING_STATUS="${{ needs.phase-6-monitoring.outputs.monitoring_status }}"
+
+          echo "DEPLOY_STATUS=$DEPLOY_STATUS"
+          echo "MONITORING_RESULT=$MONITORING_RESULT"
+          echo "MONITORING_STATUS=$MONITORING_STATUS"
+
+          if [ "$DEPLOY_STATUS" != "passed" ] || [ "$MONITORING_RESULT" != "success" ] || [ "$MONITORING_STATUS" != "passed" ]; then
+            echo "Final pipeline gate failed"
+            exit 1
+          fi
+
+      - name: Write final summary
+        run: |
+          echo "## Final Pipeline Result" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 5 - Deploy Policy | ${{ needs.phase-5-deploy-policy.outputs.deploy_policy_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 6 - Monitoring result | ${{ needs.phase-6-monitoring.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 6 - Monitoring status | ${{ needs.phase-6-monitoring.outputs.monitoring_status }} |" >> "$GITHUB_STEP_SUMMARY"

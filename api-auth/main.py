@@ -1,5 +1,6 @@
 # ❌ Código intencionalmente vulnerable para pruebas de SAST
 from fastapi import FastAPI, Query, Body
+from prometheus_fastapi_instrumentator import Instrumentator
 import sqlite3
 import subprocess, hashlib, pickle, requests
 
@@ -70,3 +71,6 @@ def insecure_fetch(url: str = Query(..., description="Try: https://example.com")
 
 # 🎯 8) CORS abierto (si lo añadieras con fastapi.middleware.cors, allow_origins=['*'])
 #     Sonar lo suele marcar como hotspot de seguridad (revisar configuración).
+
+# 📈 Instrumentación Prometheus
+Instrumentator().instrument(app).expose(app)

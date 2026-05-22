@@ -1,0 +1,96 @@
+name: Deploy Policy Check
+
+on:
+  workflow_call:
+    inputs:
+      target_environment:
+        description: "Target deployment environment"
+        required: true
+        type: string
+      release_approved:
+        description: "Whether release was explicitly approved"
+        required: true
+        type: string
+    outputs:
+      deploy_policy_status:
+        description: "Deploy policy result: passed|failed"
+        value: ${{ jobs.deploy-policy.outputs.deploy_policy_status }}
+
+jobs:
+  deploy-policy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      deploy_policy_status: ${{ steps.final_status.outputs.deploy_policy_status }}
+      job_status: ${{ steps.final_status.outputs.job_status }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Conftest
+        run: |
+          CONFTEST_VERSION="0.58.0"
+          wget -q https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz
+          tar -xzf conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz
+          sudo mv conftest /usr/local/bin/conftest
+          conftest --version
+
+      - name: Prepare policy input
+        run: |
+          mkdir -p policy/input
+          cat > policy/input/deploy-input.json <<EOF
+          {
+            "branch": "${{ github.ref_name }}",
+            "event_name": "${{ github.event_name }}",
+            "actor": "${{ github.actor }}",
+            "target_environment": "${{ inputs.target_environment }}",
+            "release_approved": "${{ inputs.release_approved }}"
+          }
+          EOF
+
+          echo "Generated deploy input:"
+          cat policy/input/deploy-input.json
+
+      - name: Run deploy policy validation
+        id: conftest_check
+        continue-on-error: true
+        run: |
+          conftest test policy/input/deploy-input.json \
+            --policy security/policies/deploy \
+            --output table
+
+      - name: Consolidate deploy policy result
+        id: final_status
+        if: always()
+        run: |
+          CONFTEST_OUTCOME="${{ steps.conftest_check.outcome }}"
+
+          echo "conftest_outcome=$CONFTEST_OUTCOME"
+
+          DEPLOY_POLICY_STATUS="passed"
+          JOB_STATUS="success"
+
+          if [ "$CONFTEST_OUTCOME" != "success" ]; then
+            DEPLOY_POLICY_STATUS="failed"
+            JOB_STATUS="failure"
+          fi
+
+          echo "deploy_policy_status=$DEPLOY_POLICY_STATUS" >> "$GITHUB_OUTPUT"
+          echo "job_status=$JOB_STATUS" >> "$GITHUB_OUTPUT"
+
+      - name: Write summary
+        if: always()
+        run: |
+          echo "## Deploy Policy Check Result" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Control | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Branch | ${{ github.ref_name }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Event | ${{ github.event_name }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Actor | ${{ github.actor }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Target environment | ${{ inputs.target_environment }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Release approved | ${{ inputs.release_approved }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Policy validation | ${{ steps.conftest_check.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Deploy policy status | ${{ steps.final_status.outputs.deploy_policy_status }} |" >> "$GITHUB_STEP_SUMMARY"
