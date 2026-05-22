@@ -196,11 +196,11 @@ jobs:
         run: |
           if [ ! -f prometheus-targets.json ]; then
             echo "prometheus-targets.json not found, skipping summary generation."
-            cat > monitoring-targets-summary.md <<'EOF'
-            | Job | Health | Scrape URL | Last Error |
-            |---|---|---|---|
-            | - | - | - | prometheus-targets.json not available |
-            EOF
+            printf '%s\n' \
+              '| Job | Health | Scrape URL | Last Error |' \
+              '|---|---|---|---|' \
+              '| - | - | - | prometheus-targets.json not available |' \
+              > monitoring-targets-summary.md
             exit 0
           fi
 
@@ -224,11 +224,11 @@ jobs:
           rows.sort(key=lambda x: x[0])
 
           with open("monitoring-targets-summary.md", "w", encoding="utf-8", newline="\n") as out:
-              out.write("| Job | Health | Scrape URL | Last Error |\n")
-              out.write("|---|---|---|---|\n")
+              out.write("| Job | Health | Scrape URL | Last Error |\\n")
+              out.write("|---|---|---|---|\\n")
               for job, health, scrape_url, last_error in rows:
-                  safe_error = (last_error or "-").replace("\n", " ").replace("\r", " ")
-                  out.write(f"| {job} | {health} | {scrape_url} | {safe_error} |\n")
+                  safe_error = (last_error or "-").replace("\\n", " ").replace("\\r", " ")
+                  out.write(f"| {job} | {health} | {scrape_url} | {safe_error} |\\n")
           PY
 
       - name: Collect diagnostics
