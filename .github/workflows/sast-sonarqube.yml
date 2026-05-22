@@ -1,4 +1,4 @@
-name: SAST (SonarCloud - Python)
+name: SAST (SonarCloud)
 
 on:
   workflow_call:

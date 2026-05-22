@@ -127,45 +127,60 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          curl -fsS "http://localhost:9090/api/v1/targets" -o prometheus-targets.json
+          for i in {1..12}; do
+            echo "Checking Prometheus targets (attempt $i/12)..."
+            curl -fsS "http://localhost:9090/api/v1/targets" -o prometheus-targets.json
 
-          python3 - <<'PY'
-          import json
-          import sys
+            python3 - <<'PY'
+            import json
+            import sys
 
-          with open("prometheus-targets.json", "r", encoding="utf-8") as f:
-              data = json.load(f)
+            with open("prometheus-targets.json", "r", encoding="utf-8") as f:
+                data = json.load(f)
 
-          active = data.get("data", {}).get("activeTargets", [])
-          required_jobs = {"api-auth", "prometheus", "node-exporter"}
+            active = data.get("data", {}).get("activeTargets", [])
+            required_jobs = {"api-auth", "prometheus", "node-exporter"}
 
-          job_states = {}
-          for target in active:
-              labels = target.get("labels", {})
-              job = labels.get("job")
-              health = target.get("health")
-              if job:
-                  job_states[job] = health
+            job_states = {}
+            for target in active:
+                labels = target.get("labels", {})
+                job = labels.get("job")
+                health = target.get("health")
+                if job:
+                    job_states[job] = health
 
-          missing = []
-          down = []
+            missing = []
+            down = []
 
-          for job in required_jobs:
-              if job not in job_states:
-                  missing.append(job)
-              elif job_states[job] != "up":
-                  down.append((job, job_states[job]))
+            for job in required_jobs:
+                if job not in job_states:
+                    missing.append(job)
+                elif job_states[job] != "up":
+                    down.append((job, job_states[job]))
 
-          print("Detected job states:", job_states)
+            print("Detected job states:", job_states)
 
-          if missing:
-              print("Missing jobs:", missing)
-          if down:
-              print("Down jobs:", down)
+            if missing:
+                print("Missing jobs:", missing)
+            if down:
+                print("Down jobs:", down)
 
-          if missing or down:
-              sys.exit(1)
-          PY
+            if missing or down:
+                sys.exit(1)
+            PY
+
+            STATUS=$?
+            if [ "$STATUS" -eq 0 ]; then
+              echo "All required targets are up."
+              exit 0
+            fi
+
+            echo "Targets not ready yet. Waiting 5 seconds..."
+            sleep 5
+          done
+
+          echo "Prometheus targets did not become healthy in time."
+          exit 1
 
       - name: Check Prometheus alerts endpoint
         id: check_alerts_endpoint
