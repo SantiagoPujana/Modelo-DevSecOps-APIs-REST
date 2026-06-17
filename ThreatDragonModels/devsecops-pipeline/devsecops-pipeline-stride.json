@@ -1,0 +1,787 @@
+{
+  "version": "2.6.2",
+  "summary": {
+    "title": "DevSecOps Pipeline STRIDE Threat Model",
+    "owner": "Santiago Pujana",
+    "description": "Modelo STRIDE del pipeline DevSecOps implementado con GitHub Actions, SAST, SCA, DAST, OPA/Conftest y monitoreo.",
+    "id": "722c84e9-f94e-4309-9d5c-34a2bd0455a5"
+  },
+  "detail": {
+    "contributors": [
+      {
+        "name": "ChatGPT"
+      },
+      {
+        "name": "Santiago Pujana"
+      }
+    ],
+    "diagrams": [
+      {
+        "title": "DevSecOps Pipeline Diagram",
+        "thumbnail": "./pipeline-thumbnail.png",
+        "version": "2.6.2",
+        "id": 0,
+        "diagramType": "STRIDE",
+        "description": "Amenazas sobre el flujo de CI/CD y validación de despliegue.",
+        "placeholder": "Pipeline model",
+        "cells": [
+          {
+            "id": "dfc77c85-1145-4222-a3a7-1c147f331e51",
+            "shape": "tm.Boundary",
+            "zIndex": 0,
+            "position": {
+              "x": 180,
+              "y": 20
+            },
+            "size": {
+              "width": 1050,
+              "height": 470
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#444444",
+                "strokeWidth": 2,
+                "strokeDasharray": "5 3"
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "Límite de confianza CI/CD",
+              "description": "Agrupa el flujo GitHub Actions y las herramientas automatizadas",
+              "type": "trust-boundary",
+              "isTrustBoundary": true,
+              "hasOpenThreats": false
+            },
+            "threats": []
+          },
+          {
+            "id": "1352eff9-6ea6-46e6-bf6e-09aca7676ca2",
+            "shape": "tm.Actor",
+            "zIndex": 1,
+            "position": {
+              "x": 40,
+              "y": 260
+            },
+            "size": {
+              "width": 120,
+              "height": 70
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "Desarrollador",
+              "description": "Actor que crea código y abre Pull Requests",
+              "type": "actor",
+              "providesAuthentication": false,
+              "hasOpenThreats": false
+            },
+            "threats": []
+          },
+          {
+            "id": "4f628ed1-1245-4a95-9adc-130ff3547d40",
+            "shape": "tm.Process",
+            "zIndex": 1,
+            "position": {
+              "x": 230,
+              "y": 250
+            },
+            "size": {
+              "width": 160,
+              "height": 80
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "GitHub / Pull Request",
+              "description": "Repositorio y evento PR que dispara la canalización",
+              "type": "process",
+              "isWebApplication": true,
+              "hasOpenThreats": true
+            },
+            "threats": [
+              {
+                "threatId": "72ba8229-aca7-49c1-994b-d32f4e16be18",
+                "number": 1,
+                "title": "Manipulación del código o workflows en PR",
+                "type": "Tampering",
+                "modelType": "STRIDE",
+                "severity": "High",
+                "status": "Open",
+                "score": "",
+                "description": "Cambios maliciosos en código, workflows o políticas podrían alterar el pipeline.",
+                "mitigation": "Revisión por PR, branch protection, code review y firmas/controles de cambios."
+              },
+              {
+                "threatId": "0099b337-21e8-49b0-9d5b-0903702251f1",
+                "number": 2,
+                "title": "Repudio de cambios o aprobaciones",
+                "type": "Repudiation",
+                "modelType": "STRIDE",
+                "severity": "Medium",
+                "status": "Open",
+                "score": "",
+                "description": "Sin trazabilidad adecuada, un actor podría negar la autoría o aprobación de cambios.",
+                "mitigation": "Mantener historial Git, auditoría de PR, reviewers y evidencias en GitHub Actions."
+              }
+            ]
+          },
+          {
+            "id": "1e44b131-f328-4940-89ff-d8113e14b570",
+            "shape": "tm.Process",
+            "zIndex": 1,
+            "position": {
+              "x": 470,
+              "y": 250
+            },
+            "size": {
+              "width": 160,
+              "height": 80
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "GitHub Actions Pipeline",
+              "description": "Orquestación de fases SAST, SCA, DAST, deploy policy y monitoring",
+              "type": "process",
+              "isWebApplication": false,
+              "hasOpenThreats": true
+            },
+            "threats": [
+              {
+                "threatId": "19e3fa28-dcb8-402f-8cde-ba0a277872e5",
+                "number": 3,
+                "title": "Uso excesivo de permisos del workflow",
+                "type": "Elevation of Privilege",
+                "modelType": "STRIDE",
+                "severity": "High",
+                "status": "Open",
+                "score": "",
+                "description": "Permisos amplios del token o de jobs podrían permitir acciones no autorizadas.",
+                "mitigation": "Aplicar principio de mínimo privilegio en permissions y separar secretos por entorno."
+              },
+              {
+                "threatId": "44472afe-7399-4362-9b5b-40bee0b0cb4d",
+                "number": 4,
+                "title": "Interrupción del pipeline por dependencia de herramientas",
+                "type": "Denial of Service",
+                "modelType": "STRIDE",
+                "severity": "Medium",
+                "status": "Open",
+                "score": "",
+                "description": "La indisponibilidad de imágenes, contenedores o bases de datos de herramientas puede impedir el análisis.",
+                "mitigation": "Cachear dependencias, fijar versiones y usar reintentos controlados."
+              }
+            ]
+          },
+          {
+            "id": "5bf1395f-bc97-429c-9f56-00ca8b02a090",
+            "shape": "tm.Process",
+            "zIndex": 1,
+            "position": {
+              "x": 700,
+              "y": 70
+            },
+            "size": {
+              "width": 160,
+              "height": 80
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "SonarQube / SonarCloud",
+              "description": "Análisis estático de código (SAST)",
+              "type": "process",
+              "isWebApplication": false,
+              "hasOpenThreats": false
+            },
+            "threats": []
+          },
+          {
+            "id": "fd05996b-0659-47ac-98e5-da5068aeb0cf",
+            "shape": "tm.Process",
+            "zIndex": 1,
+            "position": {
+              "x": 700,
+              "y": 170
+            },
+            "size": {
+              "width": 160,
+              "height": 80
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "Trivy",
+              "description": "SCA y análisis de contenedor",
+              "type": "process",
+              "isWebApplication": false,
+              "hasOpenThreats": false
+            },
+            "threats": []
+          },
+          {
+            "id": "de8a5089-fbd3-46eb-a588-a9e0eedfbb80",
+            "shape": "tm.Process",
+            "zIndex": 1,
+            "position": {
+              "x": 700,
+              "y": 270
+            },
+            "size": {
+              "width": 160,
+              "height": 80
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "OWASP Dependency-Check",
+              "description": "Análisis de dependencias vulnerables",
+              "type": "process",
+              "isWebApplication": false,
+              "hasOpenThreats": false
+            },
+            "threats": []
+          },
+          {
+            "id": "7be183da-c5a3-40ae-81c6-01bd0d3e8ca7",
+            "shape": "tm.Process",
+            "zIndex": 1,
+            "position": {
+              "x": 700,
+              "y": 370
+            },
+            "size": {
+              "width": 160,
+              "height": 80
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "OWASP ZAP",
+              "description": "Análisis dinámico de seguridad (DAST)",
+              "type": "process",
+              "isWebApplication": false,
+              "hasOpenThreats": false
+            },
+            "threats": []
+          },
+          {
+            "id": "d2932025-3aaa-498a-bde0-753a4a28205c",
+            "shape": "tm.Process",
+            "zIndex": 1,
+            "position": {
+              "x": 930,
+              "y": 210
+            },
+            "size": {
+              "width": 160,
+              "height": 80
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "OPA / Conftest",
+              "description": "Validación de políticas de despliegue",
+              "type": "process",
+              "isWebApplication": false,
+              "hasOpenThreats": true
+            },
+            "threats": [
+              {
+                "threatId": "a6a901af-2c4b-42d3-8bf3-443686b62285",
+                "number": 5,
+                "title": "Bypass del control de políticas",
+                "type": "Elevation of Privilege",
+                "modelType": "STRIDE",
+                "severity": "High",
+                "status": "Open",
+                "score": "",
+                "description": "Una política incompleta o alterada podría permitir desplegar componentes inseguros.",
+                "mitigation": "Versionar políticas, revisar cambios y hacer fallar el gate si deploy_policy_status no es passed."
+              }
+            ]
+          },
+          {
+            "id": "c00202c3-3ca5-4997-910a-0a4a0e6f9fa6",
+            "shape": "tm.Process",
+            "zIndex": 1,
+            "position": {
+              "x": 930,
+              "y": 360
+            },
+            "size": {
+              "width": 160,
+              "height": 80
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "Prometheus + Grafana + Node Exporter",
+              "description": "Monitoreo continuo y observabilidad basada en métricas",
+              "type": "process",
+              "isWebApplication": false,
+              "hasOpenThreats": true
+            },
+            "threats": [
+              {
+                "threatId": "4f0027a7-15af-44e1-b29d-fff5cffe3d88",
+                "number": 6,
+                "title": "Divulgación de métricas sensibles",
+                "type": "Information Disclosure",
+                "modelType": "STRIDE",
+                "severity": "Medium",
+                "status": "Open",
+                "score": "",
+                "description": "Métricas o paneles mal expuestos pueden revelar información del servicio o de infraestructura.",
+                "mitigation": "Restringir exposición, sanitizar métricas y proteger acceso a dashboards."
+              },
+              {
+                "threatId": "a3a14039-8bbd-47a7-9af7-5e84cbfc02c2",
+                "number": 7,
+                "title": "Falta de visibilidad ante fallas operativas",
+                "type": "Repudiation",
+                "modelType": "STRIDE",
+                "severity": "Medium",
+                "status": "Open",
+                "score": "",
+                "description": "Sin métricas ni alertas suficientes se dificulta detectar y demostrar incidentes.",
+                "mitigation": "Definir KPIs, alertas mínimas y pruebas automáticas del stack de monitoreo."
+              }
+            ]
+          },
+          {
+            "id": "5c8ae6c9-e2a6-4a73-b2a0-9e37188aca15",
+            "shape": "tm.Process",
+            "zIndex": 1,
+            "position": {
+              "x": 1160,
+              "y": 250
+            },
+            "size": {
+              "width": 160,
+              "height": 80
+            },
+            "attrs": {
+              "body": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "Entorno de despliegue / demo",
+              "description": "Ambiente donde se valida el paso final del flujo",
+              "type": "process",
+              "isWebApplication": false,
+              "hasOpenThreats": false
+            },
+            "threats": []
+          },
+          {
+            "id": "1999162c-491d-4529-86c4-d14919bc3968",
+            "shape": "tm.Flow",
+            "zIndex": 5,
+            "source": {
+              "cell": "1352eff9-6ea6-46e6-bf6e-09aca7676ca2"
+            },
+            "target": {
+              "cell": "4f628ed1-1245-4a95-9adc-130ff3547d40"
+            },
+            "connector": "normal",
+            "vertices": [],
+            "attrs": {
+              "line": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null,
+                "targetMarker": {
+                  "name": "classic"
+                },
+                "sourceMarker": ""
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "Push / Pull Request",
+              "description": "Creación de ramas y PR",
+              "type": "flow",
+              "protocol": "HTTP/HTTPS",
+              "isPublicNetwork": true,
+              "hasOpenThreats": true
+            },
+            "threats": [
+              {
+                "threatId": "df87e5b6-eac6-4a80-ba19-c77e629c3dd2",
+                "number": 8,
+                "title": "Suplantación del actor que crea cambios",
+                "type": "Spoofing",
+                "modelType": "STRIDE",
+                "severity": "Medium",
+                "status": "Open",
+                "score": "",
+                "description": "Un atacante podría usar credenciales comprometidas para abrir PR o modificar ramas.",
+                "mitigation": "MFA, protección de cuentas y branch protection."
+              }
+            ]
+          },
+          {
+            "id": "8d15629c-e2cf-441b-b1ee-07de9b205d1c",
+            "shape": "tm.Flow",
+            "zIndex": 5,
+            "source": {
+              "cell": "4f628ed1-1245-4a95-9adc-130ff3547d40"
+            },
+            "target": {
+              "cell": "1e44b131-f328-4940-89ff-d8113e14b570"
+            },
+            "connector": "normal",
+            "vertices": [],
+            "attrs": {
+              "line": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null,
+                "targetMarker": {
+                  "name": "classic"
+                },
+                "sourceMarker": ""
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "Disparo del pipeline",
+              "description": "Evento pull_request o workflow_dispatch",
+              "type": "flow",
+              "protocol": "GitHub Event",
+              "isPublicNetwork": false,
+              "hasOpenThreats": false
+            },
+            "threats": []
+          },
+          {
+            "id": "1f516bfc-4071-4858-8b32-bf091e3d8379",
+            "shape": "tm.Flow",
+            "zIndex": 5,
+            "source": {
+              "cell": "1e44b131-f328-4940-89ff-d8113e14b570"
+            },
+            "target": {
+              "cell": "5bf1395f-bc97-429c-9f56-00ca8b02a090"
+            },
+            "connector": "normal",
+            "vertices": [],
+            "attrs": {
+              "line": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null,
+                "targetMarker": {
+                  "name": "classic"
+                },
+                "sourceMarker": ""
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "Escaneo SAST",
+              "description": "Envía código a análisis estático",
+              "type": "flow",
+              "protocol": "HTTP/HTTPS",
+              "isPublicNetwork": false,
+              "hasOpenThreats": true
+            },
+            "threats": [
+              {
+                "threatId": "9133fc86-93a9-4c84-9d40-c670ee788b4c",
+                "number": 9,
+                "title": "Divulgación de información en reportes SAST",
+                "type": "Information Disclosure",
+                "modelType": "STRIDE",
+                "severity": "Low",
+                "status": "Open",
+                "score": "",
+                "description": "Reportes y enlaces podrían exponer hallazgos a actores no autorizados.",
+                "mitigation": "Controlar visibilidad de artefactos y restringir acceso a resultados."
+              }
+            ]
+          },
+          {
+            "id": "8d566f06-9588-41ef-bc86-a168ab6aa986",
+            "shape": "tm.Flow",
+            "zIndex": 5,
+            "source": {
+              "cell": "1e44b131-f328-4940-89ff-d8113e14b570"
+            },
+            "target": {
+              "cell": "fd05996b-0659-47ac-98e5-da5068aeb0cf"
+            },
+            "connector": "normal",
+            "vertices": [],
+            "attrs": {
+              "line": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null,
+                "targetMarker": {
+                  "name": "classic"
+                },
+                "sourceMarker": ""
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "Escaneo Trivy",
+              "description": "Escaneo de filesystem e imagen del contenedor",
+              "type": "flow",
+              "protocol": "HTTP/HTTPS",
+              "isPublicNetwork": false,
+              "hasOpenThreats": false
+            },
+            "threats": []
+          },
+          {
+            "id": "5955a33a-fb74-47a1-abdc-f3d677a9d935",
+            "shape": "tm.Flow",
+            "zIndex": 5,
+            "source": {
+              "cell": "1e44b131-f328-4940-89ff-d8113e14b570"
+            },
+            "target": {
+              "cell": "de8a5089-fbd3-46eb-a588-a9e0eedfbb80"
+            },
+            "connector": "normal",
+            "vertices": [],
+            "attrs": {
+              "line": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null,
+                "targetMarker": {
+                  "name": "classic"
+                },
+                "sourceMarker": ""
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "Escaneo ODC",
+              "description": "Revisión de dependencias vulnerables",
+              "type": "flow",
+              "protocol": "HTTP/HTTPS",
+              "isPublicNetwork": false,
+              "hasOpenThreats": false
+            },
+            "threats": []
+          },
+          {
+            "id": "e6c6b483-ab12-40df-a9a3-b316234ebbc4",
+            "shape": "tm.Flow",
+            "zIndex": 5,
+            "source": {
+              "cell": "1e44b131-f328-4940-89ff-d8113e14b570"
+            },
+            "target": {
+              "cell": "7be183da-c5a3-40ae-81c6-01bd0d3e8ca7"
+            },
+            "connector": "normal",
+            "vertices": [],
+            "attrs": {
+              "line": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null,
+                "targetMarker": {
+                  "name": "classic"
+                },
+                "sourceMarker": ""
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "Escaneo DAST",
+              "description": "Pruebas dinámicas contra la API en ejecución",
+              "type": "flow",
+              "protocol": "HTTP/HTTPS",
+              "isPublicNetwork": false,
+              "hasOpenThreats": false
+            },
+            "threats": []
+          },
+          {
+            "id": "b1876a29-9b60-40f4-a262-86ba1f471d04",
+            "shape": "tm.Flow",
+            "zIndex": 5,
+            "source": {
+              "cell": "1e44b131-f328-4940-89ff-d8113e14b570"
+            },
+            "target": {
+              "cell": "d2932025-3aaa-498a-bde0-753a4a28205c"
+            },
+            "connector": "normal",
+            "vertices": [],
+            "attrs": {
+              "line": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null,
+                "targetMarker": {
+                  "name": "classic"
+                },
+                "sourceMarker": ""
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "Validación de políticas",
+              "description": "Ejecución de Conftest/OPA sobre data.json y deploy_policy.rego",
+              "type": "flow",
+              "protocol": "HTTP/HTTPS",
+              "isPublicNetwork": false,
+              "hasOpenThreats": false
+            },
+            "threats": []
+          },
+          {
+            "id": "095a5969-2dac-4b02-972f-1a9b35991879",
+            "shape": "tm.Flow",
+            "zIndex": 5,
+            "source": {
+              "cell": "1e44b131-f328-4940-89ff-d8113e14b570"
+            },
+            "target": {
+              "cell": "c00202c3-3ca5-4997-910a-0a4a0e6f9fa6"
+            },
+            "connector": "normal",
+            "vertices": [],
+            "attrs": {
+              "line": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null,
+                "targetMarker": {
+                  "name": "classic"
+                },
+                "sourceMarker": ""
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "Chequeo de monitoreo",
+              "description": "Levanta el stack y verifica endpoints, targets y alertas",
+              "type": "flow",
+              "protocol": "HTTP/HTTPS",
+              "isPublicNetwork": false,
+              "hasOpenThreats": false
+            },
+            "threats": []
+          },
+          {
+            "id": "b722150f-d923-400d-a205-da18bf1b6bd3",
+            "shape": "tm.Flow",
+            "zIndex": 5,
+            "source": {
+              "cell": "d2932025-3aaa-498a-bde0-753a4a28205c"
+            },
+            "target": {
+              "cell": "5c8ae6c9-e2a6-4a73-b2a0-9e37188aca15"
+            },
+            "connector": "normal",
+            "vertices": [],
+            "attrs": {
+              "line": {
+                "stroke": "#000000",
+                "strokeWidth": 1,
+                "strokeDasharray": null,
+                "targetMarker": {
+                  "name": "classic"
+                },
+                "sourceMarker": ""
+              }
+            },
+            "visible": true,
+            "data": {
+              "name": "Autorización de despliegue",
+              "description": "Permite avanzar solo si las políticas son aprobadas",
+              "type": "flow",
+              "protocol": "HTTP/HTTPS",
+              "isPublicNetwork": false,
+              "hasOpenThreats": true
+            },
+            "threats": [
+              {
+                "threatId": "93a6a882-f56f-409e-8bfc-3f4d8442f529",
+                "number": 10,
+                "title": "Despliegue inseguro por aprobación indebida",
+                "type": "Elevation of Privilege",
+                "modelType": "STRIDE",
+                "severity": "High",
+                "status": "Open",
+                "score": "",
+                "description": "Si el gate es omitido o manipulado, podrían desplegarse cambios inseguros.",
+                "mitigation": "Encadenar gates por needs, validar outputs y bloquear promoción si alguna fase falla."
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "diagramTop": 1,
+    "reviewer": "Pendiente de revisión académica",
+    "threatTop": 10
+  }
+}
