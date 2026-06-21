@@ -1,0 +1,1046 @@
+{
+  "version": "2.6.2",
+  "summary": {
+    "title": "api-auth-runtime",
+    "owner": "Santiago Pujana",
+    "description": "Modelo STRIDE del servicio api-auth usado en la simulación DevSecOps.",
+    "id": "0d716276-db57-4c54-99dc-a87a8765ab98"
+  },
+  "detail": {
+    "contributors": [
+      {
+        "name": "Santiago Pujana"
+      }
+    ],
+    "diagrams": [
+      {
+        "description": "",
+        "diagramType": "STRIDE",
+        "id": 0,
+        "placeholder": "New STRIDE diagram description",
+        "thumbnail": "./public/content/images/thumbnail.stride.jpg",
+        "title": "api-auth-runtime",
+        "version": "2.6.2",
+        "cells": [
+          {
+            "position": {
+              "x": 120,
+              "y": 150
+            },
+            "size": {
+              "width": 170,
+              "height": 80
+            },
+            "attrs": {
+              "text": {
+                "text": "Usuario / Cliente HTTP"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1.5,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "actor",
+            "zIndex": 1,
+            "ports": {
+              "groups": {
+                "top": {
+                  "position": "top",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                },
+                "right": {
+                  "position": "right",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                },
+                "bottom": {
+                  "position": "bottom",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                },
+                "left": {
+                  "position": "left",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                }
+              },
+              "items": [
+                {
+                  "group": "top",
+                  "id": "3753ff0a-1ea6-4a31-ab83-3fc77bedbaeb"
+                },
+                {
+                  "group": "right",
+                  "id": "e63875fd-0303-4d60-99f4-c715a48bea26"
+                },
+                {
+                  "group": "bottom",
+                  "id": "10a1bccd-478b-4163-9b8e-e917ce37a148"
+                },
+                {
+                  "group": "left",
+                  "id": "2277bfad-0509-4182-8b58-838c460d1def"
+                }
+              ]
+            },
+            "id": "98231b43-8874-4968-9d46-f775ced0804c",
+            "data": {
+              "name": "Usuario / Cliente HTTP",
+              "description": "Consumidor externo de la API REST.",
+              "type": "tm.Actor",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [],
+              "hasOpenThreats": false,
+              "providesAuthentication": false
+            }
+          },
+          {
+            "position": {
+              "x": 320,
+              "y": 250
+            },
+            "size": {
+              "width": 210,
+              "height": 100
+            },
+            "attrs": {
+              "text": {
+                "text": "api-auth\n(FastAPI)"
+              },
+              "body": {
+                "stroke": "red",
+                "strokeWidth": 2.5,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 1,
+            "ports": {
+              "groups": {
+                "top": {
+                  "position": "top",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                },
+                "right": {
+                  "position": "right",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                },
+                "bottom": {
+                  "position": "bottom",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                },
+                "left": {
+                  "position": "left",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                }
+              },
+              "items": [
+                {
+                  "group": "top",
+                  "id": "dc025615-1be2-4c53-98ce-1c3bd4408f62"
+                },
+                {
+                  "group": "right",
+                  "id": "a54685b6-24fd-4124-ac30-3228f2554de3"
+                },
+                {
+                  "group": "bottom",
+                  "id": "897b2ced-a95c-4d0e-a79c-3fd3a43fbacb"
+                },
+                {
+                  "group": "left",
+                  "id": "30ed5d40-7433-4f3e-b5cc-e3d92b1c7bb4"
+                }
+              ]
+            },
+            "id": "caa58310-f42a-4d9b-a632-2076b0e65b5f",
+            "data": {
+              "name": "api-auth\n(FastAPI)",
+              "description": "Servicio REST vulnerable usado en la simulación DevSecOps.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "ruleId": "3f0a2f87-1c1e-48f2-a5cd-66687a5a6fb1",
+                  "title": "Acceso sin autenticación fuerte",
+                  "type": "Spoofing",
+                  "modelType": "STRIDE",
+                  "status": "Open",
+                  "severity": "High",
+                  "description": "Los endpoints sensibles pueden ser invocados sin autenticación ni autorización robusta.",
+                  "mitigation": "Implementar autenticación, autorización por endpoint, validación de identidad y pruebas negativas.",
+                  "threatId": "3cd9ba03-3d90-43cc-8457-95813d5b767a",
+                  "id": "439aeb00-6e3d-4d6b-a899-4e982c09908d"
+                },
+                {
+                  "ruleId": "f1bce193-b524-42e2-8be9-119f4c92d660",
+                  "title": "SQL Injection en /user",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "status": "Open",
+                  "severity": "High",
+                  "description": "El parámetro username puede alterar la consulta SQL construida por concatenación.",
+                  "mitigation": "Usar consultas parametrizadas, validación de entrada y reglas SAST/DAST para inyección.",
+                  "threatId": "e05b1f45-0991-42fb-924f-15d59770de8b",
+                  "id": "acb0e098-ad27-442c-ab8c-cc354744d730"
+                },
+                {
+                  "ruleId": "6370cdb1-d766-4e63-bc61-4b45387d94cc",
+                  "title": "Command Injection en /exec",
+                  "type": "Elevation of privilege",
+                  "modelType": "STRIDE",
+                  "status": "Open",
+                  "severity": "High",
+                  "description": "El uso de shell=True permite ejecutar comandos arbitrarios en el contenedor.",
+                  "mitigation": "Eliminar shell=True, validar argumentos y ejecutar con privilegios mínimos.",
+                  "threatId": "07fea713-283e-492d-98d9-04b00316ce98",
+                  "id": "3e37f768-3e7c-40c6-8da4-63440fb193f7"
+                },
+                {
+                  "ruleId": "01829ef9-9eca-4364-85a0-cf39c9ad5237",
+                  "title": "Deserialización insegura en /pickle",
+                  "type": "Elevation of privilege",
+                  "modelType": "STRIDE",
+                  "status": "Open",
+                  "severity": "High",
+                  "description": "pickle.loads sobre entrada no confiable puede ejecutar código arbitrario.",
+                  "mitigation": "Eliminar pickle para datos externos y usar formatos seguros como JSON.",
+                  "threatId": "d141bab7-461d-42bc-9ce2-e8929ed8dc55",
+                  "id": "57b59ba9-2571-49e4-b817-9a35aacc9dff"
+                },
+                {
+                  "ruleId": "d1e5ea25-6b2e-4f47-b38d-968b8d251a37",
+                  "title": "Secreto embebido y MD5",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "description": "El código contiene SECRET_KEY hardcodeada y usa MD5 para hash.",
+                  "mitigation": "Mover secretos a variables seguras y usar algoritmos robustos.",
+                  "threatId": "0b194874-336a-47fa-91d6-811f90760aeb",
+                  "id": "16ec9747-1f52-41fc-a3ec-8a8d1b8fcffa"
+                },
+                {
+                  "ruleId": "a0560484-b8a4-4ba6-ba8c-b990be5900f6",
+                  "title": "Falta de trazabilidad de endpoints críticos",
+                  "type": "Repudiation",
+                  "modelType": "STRIDE",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "description": "Las llamadas críticas no quedan asociadas a una identidad ni auditoría suficiente.",
+                  "mitigation": "Agregar logs/auditoría mínima, request-id y evidencias de pruebas.",
+                  "threatId": "6dbe2c4c-acb9-4d46-bcfc-8892ae2bfcf9",
+                  "id": "b2ba5a9f-3bf4-4332-850a-773c9670a462"
+                },
+                {
+                  "ruleId": "04f3622f-d389-4a92-aad6-b2d1a700fc17",
+                  "title": "Abuso de endpoints expuestos",
+                  "type": "Denial of service",
+                  "modelType": "STRIDE",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "description": "Un atacante puede invocar endpoints repetidamente o con payloads costosos.",
+                  "mitigation": "Rate limiting, timeouts, límites de payload y monitoreo de métricas.",
+                  "threatId": "dfa8448b-783c-4d73-88dc-44222b28b540",
+                  "id": "cd9cca99-2c17-45d5-b18a-b60e928841da"
+                }
+              ],
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "position": {
+              "x": 700,
+              "y": 100
+            },
+            "size": {
+              "width": 190,
+              "height": 80
+            },
+            "attrs": {
+              "text": {
+                "text": "SQLite en memoria"
+              },
+              "topLine": {
+                "stroke": "red",
+                "strokeWidth": 2.5,
+                "strokeDasharray": null
+              },
+              "bottomLine": {
+                "stroke": "red",
+                "strokeWidth": 2.5,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "store",
+            "zIndex": 1,
+            "ports": {
+              "groups": {
+                "top": {
+                  "position": "top",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                },
+                "right": {
+                  "position": "right",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                },
+                "bottom": {
+                  "position": "bottom",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                },
+                "left": {
+                  "position": "left",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                }
+              },
+              "items": [
+                {
+                  "group": "top",
+                  "id": "d92e9407-20a7-45bd-92c4-166d564ca0f5"
+                },
+                {
+                  "group": "right",
+                  "id": "5da9cb88-cc25-4dab-b2a0-f53e61b2e966"
+                },
+                {
+                  "group": "bottom",
+                  "id": "5de175cf-b57b-40fb-a527-08a530c97357"
+                },
+                {
+                  "group": "left",
+                  "id": "3323deff-c89a-490e-865b-b071257a5342"
+                }
+              ]
+            },
+            "id": "a1acc7ad-5574-4eb3-8f65-8aff40cf2ff0",
+            "data": {
+              "name": "SQLite en memoria",
+              "description": "Base de datos del ejemplo.",
+              "type": "tm.Store",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "ruleId": "c8b87f5c-6e0c-4d24-b4f9-2d79c22c7f5e",
+                  "title": "Manipulación de datos por SQL Injection",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "status": "Open",
+                  "severity": "High",
+                  "description": "Consultas no parametrizadas pueden permitir lectura o manipulación de datos.",
+                  "mitigation": "Aplicar consultas parametrizadas y validación de entradas.",
+                  "threatId": "333e5161-cefc-419f-827e-d5b2a8ae8f70",
+                  "id": "5dab1fda-0e7a-4447-97ad-1eec2fa2a925"
+                },
+                {
+                  "ruleId": "81589540-fd2a-4cee-be8e-1d42c3f65822",
+                  "title": "Exposición de usuarios",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "description": "La tabla de usuarios puede revelar información por consultas alteradas.",
+                  "mitigation": "Controlar salidas, aplicar autorización y minimizar datos devueltos.",
+                  "threatId": "afb6f109-a19a-4f76-aab2-68f7f522bb90",
+                  "id": "f257b582-c2d0-4398-92f8-2eec2a880871"
+                }
+              ],
+              "hasOpenThreats": true,
+              "isALog": false,
+              "storesCredentials": false,
+              "isEncrypted": false,
+              "isSigned": false
+            }
+          },
+          {
+            "position": {
+              "x": 720,
+              "y": 240
+            },
+            "size": {
+              "width": 190,
+              "height": 80
+            },
+            "attrs": {
+              "text": {
+                "text": "Sistema de archivos"
+              },
+              "topLine": {
+                "stroke": "red",
+                "strokeWidth": 2.5,
+                "strokeDasharray": null
+              },
+              "bottomLine": {
+                "stroke": "red",
+                "strokeWidth": 2.5,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "store",
+            "zIndex": 1,
+            "ports": {
+              "groups": {
+                "top": {
+                  "position": "top",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                },
+                "right": {
+                  "position": "right",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                },
+                "bottom": {
+                  "position": "bottom",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                },
+                "left": {
+                  "position": "left",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                }
+              },
+              "items": [
+                {
+                  "group": "top",
+                  "id": "01d09359-2f4c-4d89-819f-74b10b0cf2d6"
+                },
+                {
+                  "group": "right",
+                  "id": "458290de-454c-46d9-ac04-b03a44059dcc"
+                },
+                {
+                  "group": "bottom",
+                  "id": "547bf36c-feb8-42fc-aea3-f8b8f8851e37"
+                },
+                {
+                  "group": "left",
+                  "id": "7a0f509a-74dc-4963-a757-2bf3fdf22255"
+                }
+              ]
+            },
+            "id": "0f0dbb20-ce00-40dd-983b-aa62323b3d8d",
+            "data": {
+              "name": "Sistema de archivos",
+              "description": "Archivos accesibles por el endpoint /read.",
+              "type": "tm.Store",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "ruleId": "c6119dbb-490d-4a65-ba23-21d8f927500c",
+                  "title": "Lectura arbitraria de archivos",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "status": "Open",
+                  "severity": "High",
+                  "description": "Path traversal puede exponer archivos del contenedor o del host.",
+                  "mitigation": "Restringir rutas permitidas, normalizar rutas y aplicar permisos mínimos.",
+                  "threatId": "5efb4427-0ab9-4185-88bc-0e34c11ac3d8",
+                  "id": "65211770-0d2b-4b22-996a-e25198125e03"
+                }
+              ],
+              "hasOpenThreats": true,
+              "isALog": false,
+              "storesCredentials": false,
+              "isEncrypted": false,
+              "isSigned": false
+            }
+          },
+          {
+            "position": {
+              "x": 695,
+              "y": 390
+            },
+            "size": {
+              "width": 200,
+              "height": 80
+            },
+            "attrs": {
+              "text": {
+                "text": "Servicio externo / Internet"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1.5,
+                "strokeDasharray": null
+              }
+            },
+            "visible": true,
+            "shape": "actor",
+            "zIndex": 1,
+            "ports": {
+              "groups": {
+                "top": {
+                  "position": "top",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                },
+                "right": {
+                  "position": "right",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                },
+                "bottom": {
+                  "position": "bottom",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                },
+                "left": {
+                  "position": "left",
+                  "attrs": {
+                    "circle": {
+                      "r": 4,
+                      "magnet": true,
+                      "stroke": "#5F95FF",
+                      "strokeWidth": 1,
+                      "fill": "#fff",
+                      "style": {
+                        "visibility": "hidden"
+                      }
+                    }
+                  }
+                }
+              },
+              "items": [
+                {
+                  "group": "top",
+                  "id": "84cc456a-9c61-492a-a462-c92b035131d7"
+                },
+                {
+                  "group": "right",
+                  "id": "00983d7e-4d78-4829-90fa-faf8aa4e11cb"
+                },
+                {
+                  "group": "bottom",
+                  "id": "75f2ca55-6e91-4f20-9c0c-79661cfc7640"
+                },
+                {
+                  "group": "left",
+                  "id": "016f7bff-924d-478d-a029-f606b1232a0a"
+                }
+              ]
+            },
+            "id": "bb5c4d96-580a-4ec4-bcc4-0c04381e3612",
+            "data": {
+              "name": "Servicio externo / Internet",
+              "description": "Destino de peticiones salientes desde /fetch.",
+              "type": "tm.Actor",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [],
+              "hasOpenThreats": false,
+              "providesAuthentication": false
+            }
+          },
+          {
+            "shape": "trust-boundary-curve",
+            "width": 200,
+            "height": 100,
+            "zIndex": 10,
+            "connector": "smooth",
+            "data": {
+              "type": "tm.Boundary",
+              "name": "",
+              "description": "",
+              "isTrustBoundary": true,
+              "hasOpenThreats": false,
+              "crossingFlows": [
+                "b373867f-53c7-4a06-89fd-fabb68894fa8",
+                "69651708-e8c4-4563-b211-fb2bf2109c7e",
+                "7a617bab-9347-4494-a3c9-4b4a026187ad",
+                "07a23e04-427c-4453-bb01-1ce14ab3ce81"
+              ],
+              "containedElements": [
+                "caa58310-f42a-4d9b-a632-2076b0e65b5f"
+              ]
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "label": {
+                    "text": "Trust Boundary"
+                  }
+                }
+              }
+            ],
+            "id": "8a76d404-5d17-4952-8166-0779029421c9",
+            "source": {
+              "x": 260,
+              "y": 60
+            },
+            "target": {
+              "x": 260,
+              "y": 520
+            },
+            "vertices": [
+              {
+                "x": 880,
+                "y": 60
+              },
+              {
+                "x": 880,
+                "y": 520
+              }
+            ]
+          },
+          {
+            "shape": "flow",
+            "width": 200,
+            "height": 100,
+            "zIndex": 10,
+            "connector": "smooth",
+            "data": {
+              "type": "tm.Flow",
+              "name": "Solicitud REST",
+              "description": "Tráfico HTTP/HTTPS hacia endpoints expuestos.",
+              "outOfScope": false,
+              "isTrustBoundary": false,
+              "reasonOutOfScope": "",
+              "hasOpenThreats": true,
+              "isBidirectional": false,
+              "isEncrypted": false,
+              "isPublicNetwork": true,
+              "protocol": "HTTPS",
+              "threats": [
+                {
+                  "ruleId": "7d11dd03-1385-4815-b95a-02b603dc3598",
+                  "title": "Suplantación de cliente",
+                  "type": "Spoofing",
+                  "modelType": "STRIDE",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "description": "Solicitudes maliciosas pueden enviarse sin identidad fuerte.",
+                  "mitigation": "Autenticación, tokens válidos y controles por endpoint.",
+                  "threatId": "778c7b80-55ce-450a-aaa4-41a6f6da8e7d",
+                  "id": "7c22c835-5e2a-4f5c-947b-40a36e21d346"
+                }
+              ],
+              "trustBoundaryIds": [
+                "8a76d404-5d17-4952-8166-0779029421c9"
+              ]
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "label": {
+                    "text": "Solicitud REST (HTTPS)"
+                  }
+                },
+                "position": 0.5
+              }
+            ],
+            "id": "b373867f-53c7-4a06-89fd-fabb68894fa8",
+            "source": {
+              "cell": "98231b43-8874-4968-9d46-f775ced0804c"
+            },
+            "target": {
+              "cell": "caa58310-f42a-4d9b-a632-2076b0e65b5f"
+            },
+            "vertices": [
+              {
+                "x": 235,
+                "y": 300
+              }
+            ]
+          },
+          {
+            "shape": "flow",
+            "width": 200,
+            "height": 100,
+            "zIndex": 10,
+            "connector": "smooth",
+            "data": {
+              "type": "tm.Flow",
+              "name": "Consulta SQL",
+              "description": "Consulta de usuarios.",
+              "outOfScope": false,
+              "isTrustBoundary": false,
+              "reasonOutOfScope": "",
+              "hasOpenThreats": true,
+              "isBidirectional": false,
+              "isEncrypted": false,
+              "isPublicNetwork": false,
+              "protocol": "SQL",
+              "threats": [
+                {
+                  "ruleId": "0b791145-7676-48a5-a537-1f6269bfe0b1",
+                  "title": "Consulta SQL alterada",
+                  "type": "Tampering",
+                  "modelType": "STRIDE",
+                  "status": "Open",
+                  "severity": "High",
+                  "description": "Entrada manipulada puede modificar la consulta hacia la base de datos.",
+                  "mitigation": "Parámetros preparados y pruebas de inyección.",
+                  "threatId": "f9ea28a8-b6aa-4b6c-9bf0-99843363f7fb",
+                  "id": "055844d5-468f-43e6-aaf3-326679e34264"
+                }
+              ],
+              "trustBoundaryIds": [
+                "8a76d404-5d17-4952-8166-0779029421c9"
+              ]
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "label": {
+                    "text": "Consulta SQL (SQL)"
+                  }
+                },
+                "position": 0.5
+              }
+            ],
+            "id": "69651708-e8c4-4563-b211-fb2bf2109c7e",
+            "source": {
+              "cell": "caa58310-f42a-4d9b-a632-2076b0e65b5f"
+            },
+            "target": {
+              "cell": "a1acc7ad-5574-4eb3-8f65-8aff40cf2ff0"
+            },
+            "vertices": [
+              {
+                "x": 560,
+                "y": 175
+              }
+            ]
+          },
+          {
+            "shape": "flow",
+            "width": 200,
+            "height": 100,
+            "zIndex": 10,
+            "connector": "smooth",
+            "data": {
+              "type": "tm.Flow",
+              "name": "Lectura de archivo",
+              "description": "Lectura del sistema de archivos.",
+              "outOfScope": false,
+              "isTrustBoundary": false,
+              "reasonOutOfScope": "",
+              "hasOpenThreats": true,
+              "isBidirectional": false,
+              "isEncrypted": false,
+              "isPublicNetwork": false,
+              "protocol": "FILE",
+              "threats": [
+                {
+                  "ruleId": "39e864bf-17a0-4b42-9928-8be7498835ec",
+                  "title": "Exfiltración por lectura de archivos",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "status": "Open",
+                  "severity": "High",
+                  "description": "El flujo hacia el sistema de archivos puede revelar información sensible.",
+                  "mitigation": "Restringir rutas y permisos del contenedor.",
+                  "threatId": "1c0d5f66-91c0-4f47-91ae-0ce29b5be1f9",
+                  "id": "8e0e2369-7808-4b19-b613-bd8b60e0fea5"
+                }
+              ],
+              "trustBoundaryIds": [
+                "8a76d404-5d17-4952-8166-0779029421c9"
+              ]
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "label": {
+                    "text": "Lectura de archivo (FILE)"
+                  }
+                },
+                "position": 0.5
+              }
+            ],
+            "id": "7a617bab-9347-4494-a3c9-4b4a026187ad",
+            "source": {
+              "cell": "caa58310-f42a-4d9b-a632-2076b0e65b5f"
+            },
+            "target": {
+              "cell": "0f0dbb20-ce00-40dd-983b-aa62323b3d8d"
+            },
+            "vertices": [
+              {
+                "x": 565,
+                "y": 300
+              }
+            ]
+          },
+          {
+            "shape": "flow",
+            "width": 200,
+            "height": 100,
+            "zIndex": 10,
+            "connector": "smooth",
+            "data": {
+              "type": "tm.Flow",
+              "name": "Petición saliente",
+              "description": "Salida HTTP/HTTPS hacia URL controlada.",
+              "outOfScope": false,
+              "isTrustBoundary": false,
+              "reasonOutOfScope": "",
+              "hasOpenThreats": true,
+              "isBidirectional": false,
+              "isEncrypted": false,
+              "isPublicNetwork": true,
+              "protocol": "HTTPS",
+              "threats": [
+                {
+                  "ruleId": "ae54ba79-e980-4725-b2c7-7d8ff01a61e2",
+                  "title": "SSRF o MITM por verify=False",
+                  "type": "Information disclosure",
+                  "modelType": "STRIDE",
+                  "status": "Open",
+                  "severity": "High",
+                  "description": "URL controlada por usuario y verificación TLS deshabilitada pueden permitir SSRF o interceptación.",
+                  "mitigation": "Validar destinos, bloquear redes internas y exigir verify=True.",
+                  "threatId": "f10f166b-085b-48d1-a22d-85ca9216734c",
+                  "id": "ed2a08a4-69fb-4c5e-b556-bcace8736fd9"
+                }
+              ],
+              "trustBoundaryIds": [
+                "8a76d404-5d17-4952-8166-0779029421c9"
+              ]
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "label": {
+                    "text": "Petición saliente (HTTPS)"
+                  }
+                },
+                "position": 0.5
+              }
+            ],
+            "id": "07a23e04-427c-4453-bb01-1ce14ab3ce81",
+            "source": {
+              "cell": "caa58310-f42a-4d9b-a632-2076b0e65b5f"
+            },
+            "target": {
+              "cell": "bb5c4d96-580a-4ec4-bcc4-0c04381e3612"
+            },
+            "vertices": [
+              {
+                "x": 570,
+                "y": 410
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "diagramTop": 1,
+    "reviewer": "Pendiente",
+    "threatTop": 1000
+  }
+}
