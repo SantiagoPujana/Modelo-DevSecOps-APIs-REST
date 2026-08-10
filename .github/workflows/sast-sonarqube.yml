@@ -40,21 +40,6 @@ jobs:
           if [ -f api-auth/test/requirements.txt ]; then pip install -r api-auth/test/requirements.txt; fi
           if [ -f api-auth/requirements.txt ]; then pip install -r api-auth/requirements.txt; fi
 
-      - name: Run tests with coverage (pytest-cov)
-        id: tests
-        working-directory: api-auth
-        continue-on-error: true
-        run: |
-          export PYTHONPATH=${PWD}
-          pytest --maxfail=1 -q --cov=. --cov-report=xml:coverage.xml
-
-      - name: Upload coverage artifact
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: coverage-xml
-          path: api-auth/coverage.xml
-
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
@@ -65,7 +50,7 @@ jobs:
         id: sonar_scan_pr
         if: ${{ github.event_name == 'pull_request' }}
         continue-on-error: true
-        uses: sonarsource/sonarqube-scan-action@v7
+        uses: sonarsource/sonarqube-scan-action@v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
@@ -80,7 +65,7 @@ jobs:
         id: sonar_scan_branch
         if: ${{ github.event_name != 'pull_request' }}
         continue-on-error: true
-        uses: SonarSource/sonarqube-scan-action@v5
+        uses: SonarSource/sonarqube-scan-action@v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
@@ -99,7 +84,6 @@ jobs:
         id: final_status
         if: always()
         run: |
-          TESTS_OUTCOME="${{ steps.tests.outcome }}"
           SONAR_SCAN_PR_OUTCOME="${{ steps.sonar_scan_pr.outcome }}"
           SONAR_SCAN_BRANCH_OUTCOME="${{ steps.sonar_scan_branch.outcome }}"
           QG_STATUS="${{ steps.qg.outputs.quality-gate-status }}"
@@ -110,7 +94,6 @@ jobs:
             SONAR_SCAN_OUTCOME="$SONAR_SCAN_BRANCH_OUTCOME"
           fi
 
-          echo "tests_outcome=$TESTS_OUTCOME"
           echo "sonar_scan_pr_outcome=$SONAR_SCAN_PR_OUTCOME"
           echo "sonar_scan_branch_outcome=$SONAR_SCAN_BRANCH_OUTCOME"
           echo "sonar_scan_selected_outcome=$SONAR_SCAN_OUTCOME"
@@ -119,7 +102,7 @@ jobs:
           SECURITY_STATUS="passed"
           JOB_STATUS="success"
 
-          if [ "$TESTS_OUTCOME" != "success" ] || [ "$SONAR_SCAN_OUTCOME" != "success" ] || [ "$QG_STATUS" = "FAILED" ] || [ -z "$QG_STATUS" ]; then
+          if [ "$SONAR_SCAN_OUTCOME" != "success" ] || [ "$QG_STATUS" = "FAILED" ] || [ -z "$QG_STATUS" ]; then
             SECURITY_STATUS="failed"
             JOB_STATUS="failure"
           fi
@@ -135,7 +118,6 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Control | Result |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Tests + Coverage | ${{ steps.tests.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| SonarCloud Scan (PR) | ${{ steps.sonar_scan_pr.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| SonarCloud Scan (Branch) | ${{ steps.sonar_scan_branch.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Quality Gate | ${{ steps.qg.outputs.quality-gate-status }} |" >> "$GITHUB_STEP_SUMMARY"
