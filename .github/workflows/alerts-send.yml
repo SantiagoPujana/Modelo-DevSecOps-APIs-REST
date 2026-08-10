@@ -75,7 +75,25 @@ jobs:
           SAFE=$(printf '%s' "$SONAR_PROJECT_KEY" | sed -e 's/[&|/\\]/\\&/g')
           sed -i "s|SONAR_PROJECT_KEY|$SAFE|g" payload.json
 
-          curl -sS -X POST -H 'Content-type: application/json' --data @payload.json "$SLACK_WEBHOOK_URL"
+          echo "Slack payload:"
+          cat payload.json | jq .
+
+          RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST -H 'Content-type: application/json' --data @payload.json "$SLACK_WEBHOOK_URL")
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          CODE=$(echo "$RESPONSE" | tail -n1)
+
+          echo "Slack HTTP code: $CODE"
+          echo "Slack response body: $BODY"
+
+          if [ "$CODE" -lt 200 ] || [ "$CODE" -ge 300 ]; then
+            echo "Slack webhook request failed"
+            exit 1
+          fi
+
+          if [ "$BODY" != "ok" ]; then
+            echo "Slack rejected the payload"
+            exit 1
+          fi
 
       - name: Materialize email body (b64 → file)
         id: b64_body

@@ -172,13 +172,14 @@ jobs:
 
       - name: Upload ZAP reports
         id: upload_zap_reports
-        if: ${{ steps.zap_eval.outputs.high_medium_count != '0' }}
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: zap-reports
           path: |
             security/evidence/zap/zap-report.html
             security/evidence/zap/zap-report.json
+          if-no-files-found: ignore
 
       - name: Consolidate ZAP result
         id: final_status
@@ -288,25 +289,37 @@ jobs:
                         type:"section",
                         text: {
                           type:"mrkdwn",
-                          text:("*Run:* <" + $run + "|Open in GitHub Actions>\n*Reports artifact:* <" + $artifact + "|Download ZAP reports>")
+                          text:("*Run:* <" + $run + "|Open in GitHub Actions>" + (if ($artifact|length) > 0 then "\n*Reports artifact:* <" + $artifact + "|Download ZAP reports>" else "\n*Reports artifact:* Not generated" end))
                         }
                       }
                     ] +
                     (if ($prnum|length) > 0 then
                       [
                         {type:"section", text:{type:"mrkdwn", text:("*Pull Request:* <" + $prurl + "|PR #" + $prnum + " - " + $prtitle + ">")}},
-                        {type:"actions", elements:[
-                          {type:"button", text:{type:"plain_text", text:"Check PR"}, url:$prurl},
-                          {type:"button", text:{type:"plain_text", text:"Download Reports"}, url:$artifact},
-                          {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
-                        ]}
+                        {type:"actions", elements: (
+                          [
+                            {type:"button", text:{type:"plain_text", text:"Check PR"}, url:$prurl},
+                            {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
+                          ] +
+                          (if ($artifact|length) > 0 then
+                            [{type:"button", text:{type:"plain_text", text:"Download Reports"}, url:$artifact}]
+                          else
+                            []
+                          end)
+                        )}
                       ]
                     else
                       [
-                        {type:"actions", elements:[
-                          {type:"button", text:{type:"plain_text", text:"Download Reports"}, url:$artifact},
-                          {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
-                        ]}
+                        {type:"actions", elements: (
+                          [
+                            {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
+                          ] +
+                          (if ($artifact|length) > 0 then
+                            [{type:"button", text:{type:"plain_text", text:"Download Reports"}, url:$artifact}]
+                          else
+                            []
+                          end)
+                        )}
                       ]
                     end)
                   )

@@ -30,7 +30,7 @@ jobs:
     needs:
       - phase-2-1-sca-trivy
       - phase-2-2-sca-odc
-    uses: ./.github/workflows/zap-scan.yml
+    uses: ./.github/workflows/dast-zap.yml
     secrets: inherit
 
   phase-4-security-gate:
