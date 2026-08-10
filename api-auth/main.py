@@ -69,13 +69,55 @@ def insecure_fetch(url: str = Query(..., description="Try: https://example.com")
     r = requests.get(url, verify=False)  # Sonar: Disabling certificate validation
     return {"status": r.status_code, "len": len(r.text)}
 
-@app.get("/debug/secret")
-def debug_secret():
-    password = "admin123"
-    return {"secret": password}
-
 # 🎯 8) CORS abierto (si lo añadieras con fastapi.middleware.cors, allow_origins=['*'])
 #     Sonar lo suele marcar como hotspot de seguridad (revisar configuración).
 
 # 📈 Instrumentación Prometheus
 Instrumentator().instrument(app).expose(app)
+
+# 🧪 9) Bloque adicional intencionalmente vulnerable para validación SAST
+# Este bloque se incluye únicamente para pruebas académicas en SonarCloud.
+# No debe utilizarse en ambientes productivos.
+
+from fastapi.middleware.cors import CORSMiddleware
+import os
+import yaml
+
+# CORS abierto: configuración insegura para APIs expuestas
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Secretos con patrones más reconocibles por motores SAST
+AWS_ACCESS_KEY_ID = "AKIAIOSFODNN7EXAMPLE"
+AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+GITHUB_TOKEN = "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDE"
+PRIVATE_KEY = """-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEA7FakeKeyForAcademicTestingOnlyDoNotUse
+-----END RSA PRIVATE KEY-----"""
+
+@app.get("/debug/secrets")
+def expose_debug_secrets():
+    return {
+        "aws_access_key_id": AWS_ACCESS_KEY_ID,
+        "github_token": GITHUB_TOKEN,
+        "private_key": PRIVATE_KEY,
+    }
+
+@app.get("/debug/system")
+def debug_system(command: str = Query(..., description="Try: whoami")):
+    result = os.popen(command).read()
+    return {"command": command, "result": result[:200]}
+
+@app.post("/debug/yaml")
+def unsafe_yaml_load(payload: str = Body(...)):
+    parsed = yaml.load(payload, Loader=yaml.Loader)
+    return {"parsed": str(parsed)}
+
+@app.get("/debug/md5")
+def debug_md5(value: str = Query(...)):
+    return {"hash": hashlib.md5(value.encode()).hexdigest()}

@@ -363,6 +363,12 @@ jobs:
             PR_BLOCK=""
           fi
 
+          if [ -n "$ARTIFACT_URL" ]; then
+            ARTIFACT_BLOCK="<p><b>Reports artifact:</b> <a href=\"$ARTIFACT_URL\">Download ZAP reports</a></p>"
+          else
+            ARTIFACT_BLOCK="<p><b>Reports artifact:</b> Not generated</p>"
+          fi
+
           BODY=$(cat <<EOF
           <h2>🚨 ZAP Scan FAILED 🚨</h2>
 
@@ -375,7 +381,7 @@ jobs:
           </table>
 
           <p><b>Run:</b> <a href="$RUN_URL">Open execution in GitHub Actions</a></p>
-          <p><b>Reports artifact:</b> <a href="$ARTIFACT_URL">Download ZAP reports</a></p>
+          <p><b>Reports artifact:</b> <a href="$ARTIFACT_BLOCK">Download ZAP reports</a></p>
 
           $PR_BLOCK
 

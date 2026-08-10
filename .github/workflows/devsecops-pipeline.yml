@@ -22,7 +22,7 @@ jobs:
   phase-2-2-sca-odc:
     name: Phase 2.2 - SCA / dependency-check
     needs: phase-1-sast
-    uses: ./.github/workflows/dependency-check.yml
+    uses: ./.github/workflows/sca-dependency-check.yml
     secrets: inherit
 
   phase-3-dast:
