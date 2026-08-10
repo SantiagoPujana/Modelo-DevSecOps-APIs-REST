@@ -1,4 +1,4 @@
-# Modelo de Monitoreo y Seguimiento de APIs REST para DevSecOps
+# Modelo de Monitoreo y Seguimiento de APIs REST para DevSecOps 
 
 Repositorio de soporte para la implementación y validación de un modelo de monitoreo y seguimiento de APIs REST orientado a prácticas DevSecOps. El proyecto integra controles de seguridad en distintas fases del ciclo de vida: análisis estático, análisis de dependencias, análisis dinámico, validación de políticas de despliegue y monitoreo/observabilidad.
 

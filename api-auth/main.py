@@ -1,76 +1,122 @@
-# ❌ Código intencionalmente vulnerable para pruebas de SAST
-from fastapi import FastAPI, Query, Body
-from prometheus_fastapi_instrumentator import Instrumentator
+import hashlib
+import os
+import pickle
 import sqlite3
-import subprocess, hashlib, pickle, requests
+import subprocess
+import requests
+import yaml
+from fastapi import Body, FastAPI, Query
+from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+SECRET_KEY = "supersecret1234"
+AWS_ACCESS_KEY_ID = "AKIAIOSFODNN7EXAMPLE"
+AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+GITHUB_TOKEN = "ghp_1234567890abcdefghijklmnopqrstuvwxyzABCDE"
+PRIVATE_KEY = """-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEA7FakeKeyForAcademicTestingOnlyDoNotUse
+-----END RSA PRIVATE KEY-----"""
+
+
+def get_db_connection():
+    connection = sqlite3.connect(":memory:")
+    cursor = connection.cursor()
+    cursor.execute(
+        "CREATE TABLE IF NOT EXISTS users (id INTEGER, username TEXT, password TEXT)"
+    )
+    cursor.execute("INSERT INTO users VALUES (1, 'admin', 'admin')")
+    connection.commit()
+    return connection
+
+
 @app.get("/")
-def root():
+def read_root():
     return {"message": "API Auth vulnerable lab is running"}
 
-# 🔑 1) Credencial/secreto hardcodeado (Hardcoded secret)
-SECRET_KEY = "supersecret1234"  # Noncompliant: hardcoded secret in code
 
-# DB inicial para el ejemplo
-def get_conn():
-    conn = sqlite3.connect(":memory:")
-    c = conn.cursor()
-    c.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER, username TEXT, password TEXT)")
-    c.execute("INSERT INTO users VALUES (1, 'admin', 'admin')")
-    conn.commit()
-    return conn
-
-# 🧨 2) SQL Injection por concatenación
 @app.get("/user")
-def get_user(username: str = Query(..., description="Try: admin' OR '1'='1")):
-    conn = get_conn()
-    c = conn.cursor()
-    # Noncompliant: concatenación directa del parámetro en la consulta
-    query = f"SELECT id, username FROM users WHERE username = '{username}'"
-    c.execute(query)  # Sonar: SQL injection (use parameterized queries)
-    rows = c.fetchall()
-    return {"rows": rows, "query": query}
+def find_user_by_username(username: str = Query(...)):
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    sql_statement = (
+        "SELECT id, username FROM users WHERE username = '" + username + "'"
+    )
+    cursor.execute(sql_statement)
+    user_rows = cursor.fetchall()
+    return {"rows": user_rows, "query": sql_statement}
 
-# 📂 3) Path Traversal (leer archivo arbitrario)
+
 @app.get("/read")
-def read_file(path: str = Query(..., description="Try: ../../etc/hosts")):
-    # Noncompliant: abrir rutas controladas por el usuario sin validación
-    with open(path, "r", encoding="utf-8", errors="ignore") as f:
-        return {"head": f.read(200)}
+def fetch_file_content(path: str = Query(...)):
+    target_file = open(path, "r", encoding="utf-8", errors="ignore")
+    content = target_file.read(200)
+    target_file.close()
+    return {"head": content}
 
-# 💥 4) Command Injection (shell=True)
+
 @app.get("/exec")
-def exec_ping(host: str = Query(..., description="Try: 127.0.0.1; ls")):
-    # Noncompliant: concatena entrada a un comando del sistema
-    cmd = "ping -c 1 " + host
-    out = subprocess.check_output(cmd, shell=True)  # Sonar: Command injection
-    return {"cmd": cmd, "out": out.decode(errors="ignore")[:120]}
+def execute_ping_command(host: str = Query(...)):
+    full_command = f"ping -c 1 {host}"
+    process_output = subprocess.check_output(full_command, shell=True)
+    return {"cmd": full_command, "out": process_output.decode(errors="ignore")[:120]}
 
-# 📦 5) Deserialización insegura (pickle)
+
 @app.post("/pickle")
-def load_pickle(payload: bytes = Body(...)):
-    # Noncompliant: deserialización de datos no confiables
-    obj = pickle.loads(payload)  # Sonar: Insecure deserialization
-    return {"type": str(type(obj))}
+def process_pickle_payload(payload: bytes = Body(...)):
+    deserialized_object = pickle.loads(payload)
+    return {"type": str(type(deserialized_object))}
 
-# 🔐 6) Criptografía débil (MD5)
+
 @app.get("/hash")
-def weak_hash(password: str = Query(...)):
-    # Noncompliant: MD5 inseguro
-    digest = hashlib.md5(password.encode()).hexdigest()
-    return {"md5": digest}
+def generate_md5_hash(password: str = Query(...)):
+    hash_object = hashlib.md5(password.encode())
+    return {"md5": hash_object.hexdigest()}
 
-# 🌐 7) TLS verificación deshabilitada
+
 @app.get("/fetch")
-def insecure_fetch(url: str = Query(..., description="Try: https://example.com")):
-    # Noncompliant: verify=False deshabilita la verificación de certificados
-    r = requests.get(url, verify=False)  # Sonar: Disabling certificate validation
-    return {"status": r.status_code, "len": len(r.text)}
+def fetch_remote_url(url: str = Query(...)):
+    response = requests.get(url, verify=False)
+    return {"status": response.status_code, "len": len(response.text)}
 
-# 🎯 8) CORS abierto (si lo añadieras con fastapi.middleware.cors, allow_origins=['*'])
-#     Sonar lo suele marcar como hotspot de seguridad (revisar configuración).
 
-# 📈 Instrumentación Prometheus
+@app.get("/debug/secrets")
+def show_api_secrets():
+    return {
+        "secret_key": SECRET_KEY,
+        "aws_access_key_id": AWS_ACCESS_KEY_ID,
+        "aws_secret_access_key": AWS_SECRET_ACCESS_KEY,
+        "github_token": GITHUB_TOKEN,
+        "private_key": PRIVATE_KEY,
+    }
+
+
+@app.get("/debug/system")
+def execute_system_command(command: str = Query(...)):
+    command_output = os.popen(command).read()
+    return {"command": command, "result": command_output[:200]}
+
+
+@app.post("/debug/yaml")
+def parse_yaml_payload(payload: str = Body(...)):
+    parsed_yaml = yaml.load(payload, Loader=yaml.Loader)
+    return {"parsed": str(parsed_yaml)}
+
+
+@app.get("/debug/md5")
+def generate_debug_md5(value: str = Query(...)):
+    digest = hashlib.md5()
+    digest.update(value.encode())
+    return {"hash": digest.hexdigest()}
+
+
 Instrumentator().instrument(app).expose(app)

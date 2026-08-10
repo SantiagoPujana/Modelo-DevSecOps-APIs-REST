@@ -4,7 +4,11 @@ on:
   pull_request:
     branches:
       - main
-      - develop
+
+  push:
+    branches:
+      - main
+
   workflow_dispatch:
 
 jobs:
@@ -22,7 +26,7 @@ jobs:
   phase-2-2-sca-odc:
     name: Phase 2.2 - SCA / dependency-check
     needs: phase-1-sast
-    uses: ./.github/workflows/dependency-check.yml
+    uses: ./.github/workflows/sca-dependency-check.yml
     secrets: inherit
 
   phase-3-dast:
@@ -30,7 +34,7 @@ jobs:
     needs:
       - phase-2-1-sca-trivy
       - phase-2-2-sca-odc
-    uses: ./.github/workflows/zap-scan.yml
+    uses: ./.github/workflows/dast-zap.yml
     secrets: inherit
 
   phase-4-security-gate:

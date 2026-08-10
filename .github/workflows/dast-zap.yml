@@ -32,25 +32,32 @@ jobs:
           mkdir -p security/evidence/zap
           chmod 777 security/evidence/zap
 
-      - name: Start application stack
+      - name: Create Docker network
+        run: |
+          docker network create devsecops-net || true
+
+      - name: Start stack
         id: start_stack
         continue-on-error: true
         run: |
+          docker network create devsecops-net || true
           docker compose -f api-auth/docker-compose.yml up -d --build
+          docker ps
 
       - name: Wait for application
         id: wait_app
         continue-on-error: true
         run: |
           for i in {1..30}; do
-            if curl -fsS http://localhost:8000/openapi.json >/dev/null 2>&1; then
-              echo "Application is up"
+            if curl -fsS http://localhost:8000/health; then
+              echo "app_status=ready" >> "$GITHUB_OUTPUT"
               exit 0
             fi
-            echo "Waiting for application..."
-            sleep 10
+            sleep 2
           done
-          echo "Application did not become ready in time"
+
+          echo "app_status=not_ready" >> "$GITHUB_OUTPUT"
+          docker compose -f api-auth/docker-compose.yml logs
           exit 1
 
       - name: Warm up API routes
@@ -172,13 +179,14 @@ jobs:
 
       - name: Upload ZAP reports
         id: upload_zap_reports
-        if: ${{ steps.zap_eval.outputs.high_medium_count != '0' }}
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: zap-reports
           path: |
             security/evidence/zap/zap-report.html
             security/evidence/zap/zap-report.json
+          if-no-files-found: ignore
 
       - name: Consolidate ZAP result
         id: final_status
@@ -288,25 +296,37 @@ jobs:
                         type:"section",
                         text: {
                           type:"mrkdwn",
-                          text:("*Run:* <" + $run + "|Open in GitHub Actions>\n*Reports artifact:* <" + $artifact + "|Download ZAP reports>")
+                          text:("*Run:* <" + $run + "|Open in GitHub Actions>" + (if ($artifact|length) > 0 then "\n*Reports artifact:* <" + $artifact + "|Download ZAP reports>" else "\n*Reports artifact:* Not generated" end))
                         }
                       }
                     ] +
                     (if ($prnum|length) > 0 then
                       [
                         {type:"section", text:{type:"mrkdwn", text:("*Pull Request:* <" + $prurl + "|PR #" + $prnum + " - " + $prtitle + ">")}},
-                        {type:"actions", elements:[
-                          {type:"button", text:{type:"plain_text", text:"Check PR"}, url:$prurl},
-                          {type:"button", text:{type:"plain_text", text:"Download Reports"}, url:$artifact},
-                          {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
-                        ]}
+                        {type:"actions", elements: (
+                          [
+                            {type:"button", text:{type:"plain_text", text:"Check PR"}, url:$prurl},
+                            {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
+                          ] +
+                          (if ($artifact|length) > 0 then
+                            [{type:"button", text:{type:"plain_text", text:"Download Reports"}, url:$artifact}]
+                          else
+                            []
+                          end)
+                        )}
                       ]
                     else
                       [
-                        {type:"actions", elements:[
-                          {type:"button", text:{type:"plain_text", text:"Download Reports"}, url:$artifact},
-                          {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
-                        ]}
+                        {type:"actions", elements: (
+                          [
+                            {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
+                          ] +
+                          (if ($artifact|length) > 0 then
+                            [{type:"button", text:{type:"plain_text", text:"Download Reports"}, url:$artifact}]
+                          else
+                            []
+                          end)
+                        )}
                       ]
                     end)
                   )
@@ -343,6 +363,12 @@ jobs:
             PR_BLOCK=""
           fi
 
+          if [ -n "$ARTIFACT_URL" ]; then
+            ARTIFACT_BLOCK="<p><b>Reports artifact:</b> <a href=\"$ARTIFACT_URL\">Download ZAP reports</a></p>"
+          else
+            ARTIFACT_BLOCK="<p><b>Reports artifact:</b> Not generated</p>"
+          fi
+
           BODY=$(cat <<EOF
           <h2>🚨 ZAP Scan FAILED 🚨</h2>
 
@@ -355,7 +381,7 @@ jobs:
           </table>
 
           <p><b>Run:</b> <a href="$RUN_URL">Open execution in GitHub Actions</a></p>
-          <p><b>Reports artifact:</b> <a href="$ARTIFACT_URL">Download ZAP reports</a></p>
+          <p><b>Reports artifact:</b> <a href="$ARTIFACT_BLOCK">Download ZAP reports</a></p>
 
           $PR_BLOCK
 
