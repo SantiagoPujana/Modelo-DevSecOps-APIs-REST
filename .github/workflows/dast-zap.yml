@@ -32,25 +32,32 @@ jobs:
           mkdir -p security/evidence/zap
           chmod 777 security/evidence/zap
 
-      - name: Start application stack
+      - name: Create Docker network
+        run: |
+          docker network create devsecops-net || true
+
+      - name: Start stack
         id: start_stack
         continue-on-error: true
         run: |
+          docker network create devsecops-net || true
           docker compose -f api-auth/docker-compose.yml up -d --build
+          docker ps
 
       - name: Wait for application
         id: wait_app
         continue-on-error: true
         run: |
           for i in {1..30}; do
-            if curl -fsS http://localhost:8000/openapi.json >/dev/null 2>&1; then
-              echo "Application is up"
+            if curl -fsS http://localhost:8000/health; then
+              echo "app_status=ready" >> "$GITHUB_OUTPUT"
               exit 0
             fi
-            echo "Waiting for application..."
-            sleep 10
+            sleep 2
           done
-          echo "Application did not become ready in time"
+
+          echo "app_status=not_ready" >> "$GITHUB_OUTPUT"
+          docker compose -f api-auth/docker-compose.yml logs
           exit 1
 
       - name: Warm up API routes

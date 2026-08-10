@@ -69,6 +69,11 @@ def insecure_fetch(url: str = Query(..., description="Try: https://example.com")
     r = requests.get(url, verify=False)  # Sonar: Disabling certificate validation
     return {"status": r.status_code, "len": len(r.text)}
 
+@app.get("/debug/secret")
+def debug_secret():
+    password = "admin123"
+    return {"secret": password}
+
 # 🎯 8) CORS abierto (si lo añadieras con fastapi.middleware.cors, allow_origins=['*'])
 #     Sonar lo suele marcar como hotspot de seguridad (revisar configuración).
 
