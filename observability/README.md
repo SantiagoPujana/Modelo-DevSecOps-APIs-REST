@@ -25,8 +25,7 @@ observability/
 ├─ docker-compose.yml
 ├─ README.md
 ├─ prometheus/
-│  ├─ prometheus.yml
-│  └─ alerts.yml
+│  └─ prometheus.yml
 ├─ grafana/
 │  ├─ provisioning/
 │  │  ├─ datasources/
