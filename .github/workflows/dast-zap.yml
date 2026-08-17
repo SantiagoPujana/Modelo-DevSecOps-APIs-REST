@@ -381,7 +381,8 @@ jobs:
           </table>
 
           <p><b>Run:</b> <a href="$RUN_URL">Open execution in GitHub Actions</a></p>
-          <p><b>Reports artifact:</b> <a href="$ARTIFACT_BLOCK">Download ZAP reports</a></p>
+          
+          $ARTIFACT_BLOCK
 
           $PR_BLOCK
 
