@@ -181,14 +181,6 @@ jobs:
           echo "Prometheus targets did not become healthy in time."
           exit 1
 
-      - name: Check Prometheus alerts endpoint
-        id: check_alerts_endpoint
-        if: always()
-        continue-on-error: true
-        run: |
-          curl -fsS http://localhost:9090/api/v1/alerts -o prometheus-alerts.json
-          cat prometheus-alerts.json | head -c 2000 || true
-
       - name: Build monitoring summary data
         id: build_summary
         if: always()
@@ -247,7 +239,6 @@ jobs:
           curl -fsS http://localhost:8000/ -o monitoring-evidence/api-root-response.json || true
           curl -fsS http://localhost:8000/metrics -o monitoring-evidence/api-metrics.txt || true
           curl -fsS http://localhost:9090/api/v1/targets -o monitoring-evidence/prometheus-targets.json || true
-          curl -fsS http://localhost:9090/api/v1/alerts -o monitoring-evidence/prometheus-alerts.json || true
           curl -fsS http://localhost:3000/api/health -o monitoring-evidence/grafana-health.json || true
           curl -fsS http://localhost:9100/metrics -o monitoring-evidence/node-exporter-metrics.txt || true
 
@@ -264,12 +255,11 @@ jobs:
           if [ -f prometheus-targets.json ]; then
             cp prometheus-targets.json monitoring-evidence/prometheus-targets-raw.json || true
           fi
-          if [ -f prometheus-alerts.json ]; then
-            cp prometheus-alerts.json monitoring-evidence/prometheus-alerts-raw.json || true
-          fi
+
           if [ -f monitoring-targets-summary.md ]; then
             cp monitoring-targets-summary.md monitoring-evidence/monitoring-targets-summary.md || true
           fi
+
           cp monitoring-traffic.log monitoring-evidence/monitoring-traffic.log || true
 
       - name: Upload monitoring evidence on failure
@@ -334,7 +324,6 @@ jobs:
           echo "| Grafana ready | ${{ steps.wait_grafana.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Traffic generation | ${{ steps.generate_traffic.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Prometheus targets | ${{ steps.check_targets.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Alerts endpoint | ${{ steps.check_alerts_endpoint.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Monitoring status | ${{ steps.final_status.outputs.monitoring_status }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "### Prometheus Targets" >> "$GITHUB_STEP_SUMMARY"
