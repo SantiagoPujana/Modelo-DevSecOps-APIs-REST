@@ -11,6 +11,12 @@ on:
 
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
 jobs:
   phase-1-sast:
     name: Phase 1 - SAST / sast
@@ -45,8 +51,140 @@ jobs:
       - phase-2-2-sca-odc
       - phase-3-dast
     if: always()
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/security-history.yml
     secrets: inherit
+
+  phase-4-publish-security-history:
+    name: Phase 4 - Publish Security History to GitHub Pages
+    needs: phase-4-security-history
+    if: always() && needs.phase-4-security-history.result == 'success'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      actions: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    outputs:
+      report_url: ${{ steps.page_links.outputs.report_url }}
+
+    steps:
+      - name: Download Security History artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: security-history-report
+          path: security/evidence/history
+
+      - name: Prepare GitHub Pages content
+        id: prepare
+        shell: bash
+        run: |
+          RUN_ID="${{ github.run_id }}"
+          REPORT_PATH="history/${RUN_ID}/"
+
+          mkdir -p "public/${REPORT_PATH}"
+
+          cp security/evidence/history/security-history.html "public/${REPORT_PATH}/index.html"
+          cp security/evidence/history/security-history.json "public/${REPORT_PATH}/security-history.json" || true
+          cp security/evidence/history/current-findings.json "public/${REPORT_PATH}/current-findings.json" || true
+          cp security/evidence/history/summary.env "public/${REPORT_PATH}/summary.env" || true
+
+          cat > public/index.html <<EOF
+          <!doctype html>
+          <html lang="es">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Security History Reports</title>
+            <style>
+              body { font-family: Arial, Helvetica, sans-serif; margin: 32px; color: #1f2937; background: #f8fafc; }
+              .card { background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 22px; max-width: 780px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+              a { color: #2563eb; font-weight: bold; }
+              code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <h1>Security History Reports</h1>
+              <p>Último reporte generado por el pipeline DevSecOps.</p>
+              <p><b>Repositorio:</b> <code>${{ github.repository }}</code></p>
+              <p><b>Run:</b> <code>${{ github.run_id }}</code></p>
+              <p><a href="./${REPORT_PATH}">Ver historial de seguridad</a></p>
+            </div>
+          </body>
+          </html>
+          EOF
+
+          echo "report_path=${REPORT_PATH}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Build report URL
+        id: page_links
+        shell: bash
+        run: |
+          BASE_URL="${{ steps.deployment.outputs.page_url }}"
+          REPORT_PATH="${{ steps.prepare.outputs.report_path }}"
+          REPORT_URL="${BASE_URL%/}/${REPORT_PATH}"
+
+          echo "report_url=${REPORT_URL}" >> "$GITHUB_OUTPUT"
+          echo "## Security History publicado" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Reporte HTML: ${REPORT_URL}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Load Security History summary
+        shell: bash
+        run: |
+          if [ -f security/evidence/history/summary.env ]; then
+            cat security/evidence/history/summary.env >> "$GITHUB_ENV"
+          fi
+
+      - name: Send Security History Slack alert
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          REPORT_URL: ${{ steps.page_links.outputs.report_url }}
+        shell: bash
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL no configurado. Se omite alerta Slack."
+            exit 0
+          fi
+
+          MESSAGE="📊 Security History generado
+          Repositorio: ${{ github.repository }}
+          Run: ${{ github.run_id }}
+          Hallazgos actuales: ${current_total:-N/A}
+          Nuevos: ${new_count:-N/A}
+          Persistentes: ${persistent_count:-N/A}
+          Corregidos: ${fixed_count:-N/A}
+          SAST: ${sast_current:-N/A}
+          SCA: ${sca_current:-N/A}
+          DAST: ${dast_current:-N/A}
+
+          Ver reporte: ${REPORT_URL}"
+
+          jq -n --arg text "$MESSAGE" '{text: $text}' > slack_payload.json
+
+          curl -X POST             -H "Content-Type: application/json"             --data @slack_payload.json             "$SLACK_WEBHOOK_URL"
 
   phase-4-security-gate:
     name: Phase 4 - Security Gate
