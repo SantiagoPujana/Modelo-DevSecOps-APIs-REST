@@ -37,6 +37,17 @@ jobs:
     uses: ./.github/workflows/dast-zap.yml
     secrets: inherit
 
+  phase-4-security-history:
+    name: Phase 4 - Security Findings History
+    needs:
+      - phase-1-sast
+      - phase-2-1-sca-trivy
+      - phase-2-2-sca-odc
+      - phase-3-dast
+    if: always()
+    uses: ./.github/workflows/security-history.yml
+    secrets: inherit
+
   phase-4-security-gate:
     name: Phase 4 - Security Gate
     needs:
@@ -44,6 +55,7 @@ jobs:
       - phase-2-1-sca-trivy
       - phase-2-2-sca-odc
       - phase-3-dast
+      - phase-4-security-history
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -54,15 +66,17 @@ jobs:
           PHASE_2_1_STATUS="${{ needs.phase-2-1-sca-trivy.outputs.security_status }}"
           PHASE_2_2_STATUS="${{ needs.phase-2-2-sca-odc.outputs.security_status }}"
           PHASE_3_STATUS="${{ needs.phase-3-dast.outputs.security_status }}"
+          HISTORY_STATUS="${{ needs.phase-4-security-history.outputs.history_status }}"
 
           echo "PHASE_1_STATUS=$PHASE_1_STATUS"
           echo "PHASE_2_1_STATUS=$PHASE_2_1_STATUS"
           echo "PHASE_2_2_STATUS=$PHASE_2_2_STATUS"
           echo "PHASE_3_STATUS=$PHASE_3_STATUS"
+          echo "HISTORY_STATUS=$HISTORY_STATUS"
 
           FINAL_STATUS="passed"
 
-          if [ "$PHASE_1_STATUS" != "passed" ] || [ "$PHASE_2_1_STATUS" != "passed" ] || [ "$PHASE_2_2_STATUS" != "passed" ] || [ "$PHASE_3_STATUS" != "passed" ]; then
+          if [ "$PHASE_1_STATUS" != "passed" ] || [ "$PHASE_2_1_STATUS" != "passed" ] || [ "$PHASE_2_2_STATUS" != "passed" ] || [ "$PHASE_3_STATUS" != "passed" ] || [ "$HISTORY_STATUS" != "passed" ]; then
             FINAL_STATUS="failed"
           fi
 
@@ -78,6 +92,10 @@ jobs:
           echo "| Phase 2.1 - SCA / Trivy | ${{ needs.phase-2-1-sca-trivy.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Phase 2.2 - SCA / Dependency-Check | ${{ needs.phase-2-2-sca-odc.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Phase 3 - DAST / ZAP | ${{ needs.phase-3-dast.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase 4 - Security History | ${{ needs.phase-4-security-history.outputs.history_status }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| History - New findings | ${{ needs.phase-4-security-history.outputs.new_count }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| History - Persistent findings | ${{ needs.phase-4-security-history.outputs.persistent_count }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| History - Fixed findings | ${{ needs.phase-4-security-history.outputs.fixed_count }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Phase 4 - Security Gate | ${{ steps.validate_phases.outputs.final_status }} |" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fail pipeline if gate failed

@@ -1,0 +1,211 @@
+name: Security Findings History
+
+on:
+  workflow_call:
+    outputs:
+      history_status:
+        description: "History generation result: passed|failed"
+        value: ${{ jobs.history.outputs.history_status }}
+      new_count:
+        description: "New findings count"
+        value: ${{ jobs.history.outputs.new_count }}
+      persistent_count:
+        description: "Persistent findings count"
+        value: ${{ jobs.history.outputs.persistent_count }}
+      fixed_count:
+        description: "Fixed findings count"
+        value: ${{ jobs.history.outputs.fixed_count }}
+    secrets:
+      SONAR_TOKEN:
+        required: false
+      SONAR_PROJECT_KEY:
+        required: false
+      SONAR_ORG:
+        required: false
+
+jobs:
+  history:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      history_status: ${{ steps.final_status.outputs.history_status }}
+      new_count: ${{ steps.summary.outputs.new_count }}
+      persistent_count: ${{ steps.summary.outputs.persistent_count }}
+      fixed_count: ${{ steps.summary.outputs.fixed_count }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Restore previous security history snapshot
+        id: history_cache
+        uses: actions/cache@v5
+        with:
+          path: .security-history-cache
+          key: ${{ runner.os }}-security-history-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-security-history-${{ github.ref_name }}-
+            ${{ runner.os }}-security-history-
+
+      - name: Prepare history directories
+        run: |
+          mkdir -p security/evidence/sonar
+          mkdir -p security/evidence/trivy
+          mkdir -p security/evidence/dependency-check
+          mkdir -p security/evidence/zap
+          mkdir -p security/evidence/history
+          mkdir -p .security-history-cache
+
+      - name: Download Trivy reports artifact
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@v6
+        with:
+          name: trivy-reports
+          path: security/evidence/trivy
+
+      - name: Download Dependency-Check reports artifact
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@v6
+        with:
+          name: dependency-check-report
+          path: security/evidence/dependency-check
+
+      - name: Download ZAP reports artifact
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@v6
+        with:
+          name: zap-reports
+          path: security/evidence/zap
+
+      - name: Fetch SonarCloud issues using Web API
+        if: always()
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+          PR_NUMBER: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          out = Path("security/evidence/sonar/sonar-issues.json")
+          out.parent.mkdir(parents=True, exist_ok=True)
+
+          token = os.getenv("SONAR_TOKEN", "")
+          project_key = os.getenv("SONAR_PROJECT_KEY", "")
+          pr_number = os.getenv("PR_NUMBER", "")
+          ref_name = os.getenv("REF_NAME", "")
+
+          if not token or not project_key:
+              out.write_text(json.dumps({
+                  "issues": [],
+                  "errors": ["SONAR_TOKEN o SONAR_PROJECT_KEY no está configurado; no se consultó SonarCloud."],
+              }, ensure_ascii=False, indent=2), encoding="utf-8")
+              sys.exit(0)
+
+          params = {
+              "componentKeys": project_key,
+              "ps": "500",
+          }
+
+          if pr_number:
+              params["pullRequest"] = pr_number
+          elif ref_name:
+              params["branch"] = ref_name
+
+          url = "https://sonarcloud.io/api/issues/search?" + urllib.parse.urlencode(params)
+          request = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+
+          try:
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  payload = json.loads(response.read().decode("utf-8"))
+          except Exception as exc:
+              payload = {
+                  "issues": [],
+                  "errors": [f"No se pudo consultar SonarCloud: {exc}"],
+              }
+
+          out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+          print(f"SonarCloud issues stored in {out}")
+          PY
+
+      - name: List collected evidence files
+        if: always()
+        run: |
+          echo "Collected evidence files:"
+          find security/evidence -maxdepth 3 -type f | sort || true
+
+      - name: Generate security history HTML
+        id: generate_history
+        if: always()
+        continue-on-error: true
+        run: |
+          python security/history/generate_security_history.py
+
+      - name: Read history summary
+        id: summary
+        if: always()
+        run: |
+          SUMMARY_FILE="security/evidence/history/summary.env"
+          if [ -f "$SUMMARY_FILE" ]; then
+            cat "$SUMMARY_FILE"
+            cat "$SUMMARY_FILE" >> "$GITHUB_OUTPUT"
+          else
+            echo "new_count=0" >> "$GITHUB_OUTPUT"
+            echo "persistent_count=0" >> "$GITHUB_OUTPUT"
+            echo "fixed_count=0" >> "$GITHUB_OUTPUT"
+            echo "current_total=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload security history artifact
+        id: upload_history
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: security-history-report
+          path: |
+            security/evidence/history/security-history.html
+            security/evidence/history/security-history.json
+            security/evidence/history/current-findings.json
+            security/evidence/history/summary.env
+          if-no-files-found: warn
+
+      - name: Write security history summary
+        if: always()
+        run: |
+          echo "## Security Findings History" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Métrica | Valor |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---:|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Hallazgos actuales | ${{ steps.summary.outputs.current_total || '0' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Nuevos | ${{ steps.summary.outputs.new_count || '0' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Persistentes | ${{ steps.summary.outputs.persistent_count || '0' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Corregidos | ${{ steps.summary.outputs.fixed_count || '0' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Artifact: ${{ steps.upload_history.outputs.artifact-url }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Consolidate history result
+        id: final_status
+        if: always()
+        run: |
+          if [ "${{ steps.generate_history.outcome }}" = "success" ]; then
+            echo "history_status=passed" >> "$GITHUB_OUTPUT"
+          else
+            echo "history_status=failed" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi

@@ -159,7 +159,7 @@ jobs:
 
       - name: Upload Trivy reports
         id: upload_trivy_reports
-        if: ${{ (steps.fs_vuln_check.outputs.high_critical_count != '0' || steps.image_vuln_check.outputs.high_critical_count != '0') }}
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: trivy-reports
@@ -168,6 +168,7 @@ jobs:
             security/evidence/trivy/trivy-report.json
             security/evidence/trivy/trivy-image-report.html
             security/evidence/trivy/trivy-image-report.json
+          if-no-files-found: ignore
 
       - name: Consolidate Trivy result
         id: final_status
