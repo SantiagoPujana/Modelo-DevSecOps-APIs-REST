@@ -26,9 +26,6 @@ on:
 jobs:
   history:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
     outputs:
       history_status: ${{ steps.final_status.outputs.history_status }}
       new_count: ${{ steps.summary.outputs.new_count }}
