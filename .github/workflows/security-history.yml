@@ -63,7 +63,7 @@ jobs:
       - name: Download Trivy reports artifact
         if: always()
         continue-on-error: true
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: trivy-reports
           path: security/evidence/trivy
@@ -71,7 +71,7 @@ jobs:
       - name: Download Dependency-Check reports artifact
         if: always()
         continue-on-error: true
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: dependency-check-report
           path: security/evidence/dependency-check
@@ -79,7 +79,7 @@ jobs:
       - name: Download ZAP reports artifact
         if: always()
         continue-on-error: true
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: zap-reports
           path: security/evidence/zap
