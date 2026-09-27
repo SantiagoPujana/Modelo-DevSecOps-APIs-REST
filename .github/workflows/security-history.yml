@@ -2,6 +2,12 @@ name: Security Findings History
 
 on:
   workflow_call:
+    inputs:
+      reset_history:
+        description: "Resetear el historial de hallazgos y crear una nueva línea base"
+        required: false
+        type: boolean
+        default: false
     outputs:
       history_status:
         description: "History generation result: passed|failed"
@@ -86,6 +92,9 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
+          RESET_BY_WORKFLOW_DISPATCH: ${{ inputs.reset_history == true }}
+          RESET_BY_PR_LABEL: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'reset-security-history') }}
+          RESET_BY_PR_TITLE: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[reset-history]') }}
         shell: bash
         run: |
           RELEASE_TAG="security-history-latest"
@@ -93,6 +102,43 @@ jobs:
           PREVIOUS_EVIDENCE_FILE="security/evidence/history/previous-findings.json"
 
           rm -f ".security-history-cache/current-findings.json"
+
+          RESET_REQUESTED="false"
+          RESET_REASON="none"
+
+          if [ "$RESET_BY_WORKFLOW_DISPATCH" = "true" ]; then
+            RESET_REQUESTED="true"
+            RESET_REASON="manual workflow_dispatch input reset_history"
+          elif [ "$RESET_BY_PR_LABEL" = "true" ]; then
+            RESET_REQUESTED="true"
+            RESET_REASON="pull request label reset-security-history"
+          elif [ "$RESET_BY_PR_TITLE" = "true" ]; then
+            RESET_REQUESTED="true"
+            RESET_REASON="pull request title [reset-history]"
+          fi
+
+          if [ "$RESET_REQUESTED" = "true" ]; then
+            echo "Security History reset requested by: ${RESET_REASON}"
+            echo "This execution will start with an empty previous snapshot."
+
+            cat > "$PREVIOUS_FILE" <<'JSON'
+          {
+            "metadata": {
+              "reset": true
+            },
+            "findings": []
+          }
+          JSON
+
+            cp "$PREVIOUS_FILE" "$PREVIOUS_EVIDENCE_FILE"
+
+            echo "## Security History reset" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Reset solicitado por: ${RESET_REASON}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Esta ejecución se usará como nueva línea base." >> "$GITHUB_STEP_SUMMARY"
+
+            exit 0
+          fi
 
           echo "Trying to restore previous findings from release: ${RELEASE_TAG}"
 
@@ -511,22 +557,183 @@ jobs:
           <html lang="es">
           <head>
             <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
             <style>
-              body { font-family: Arial, Helvetica, sans-serif; color: #1f2937; background: #f8fafc; margin: 0; padding: 24px; }
-              .container { max-width: 760px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; }
-              .header { background: #111827; color: #ffffff; padding: 22px 24px; }
-              .header h1 { margin: 0; font-size: 24px; }
-              .header p { margin: 8px 0 0; color: #d1d5db; }
-              .content { padding: 22px 24px; }
-              .meta { width: 100%; border-collapse: collapse; margin: 14px 0 20px; }
-              .meta td { padding: 7px 6px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
-              .meta td:first-child { font-weight: bold; color: #374151; width: 150px; }
-              .cards { display: table; width: 100%; table-layout: fixed; border-spacing: 8px; }
-              .card { display: table-cell; background: #4b5563; border: 1px solid #d1d5db; border-radius: 10px; padding: 14px; text-align: center; }
-              .value { font-size: 26px; font-weight: bold; color: #ffffff; }
-              .label { font-size: 12px; color: #e5e7eb; margin-top: 4px; font-weight: 600; }
-              .button { display: inline-block; margin-top: 18px; padding: 12px 16px; background: #2563eb; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: bold; }
-              .note { margin-top: 18px; color: #6b7280; font-size: 13px; }
+              body {
+                font-family: Arial, Helvetica, sans-serif;
+                color: #1f2937;
+                background: #f8fafc;
+                margin: 0;
+                padding: 24px;
+              }
+
+              .container {
+                width: 100%;
+                max-width: 760px;
+                margin: 0 auto;
+                background: #ffffff;
+                border: 1px solid #e5e7eb;
+                border-radius: 14px;
+                overflow: hidden;
+              }
+
+              .header {
+                background: #111827;
+                color: #ffffff;
+                padding: 22px 24px;
+              }
+
+              .header h1 {
+                margin: 0;
+                font-size: 24px;
+                line-height: 1.25;
+              }
+
+              .header p {
+                margin: 8px 0 0;
+                color: #d1d5db;
+                line-height: 1.45;
+              }
+
+              .content {
+                padding: 22px 24px;
+              }
+
+              .meta {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 14px 0 20px;
+              }
+
+              .meta td {
+                padding: 7px 6px;
+                border-bottom: 1px solid #e5e7eb;
+                vertical-align: top;
+                word-break: break-word;
+              }
+
+              .meta td:first-child {
+                font-weight: bold;
+                color: #374151;
+                width: 150px;
+              }
+
+              .cards {
+                display: table;
+                width: 100%;
+                table-layout: fixed;
+                border-spacing: 8px;
+              }
+
+              .card {
+                display: table-cell;
+                background: #4b5563;
+                border: 1px solid #d1d5db;
+                border-radius: 10px;
+                padding: 14px;
+                text-align: center;
+              }
+
+              .value {
+                font-size: 26px;
+                line-height: 1.2;
+                font-weight: bold;
+                color: #ffffff;
+              }
+
+              .label {
+                font-size: 12px;
+                line-height: 1.35;
+                color: #e5e7eb;
+                margin-top: 4px;
+                font-weight: 600;
+              }
+
+              .button {
+                display: inline-block;
+                margin-top: 18px;
+                padding: 12px 16px;
+                background: #2563eb;
+                color: #ffffff !important;
+                text-decoration: none;
+                border-radius: 8px;
+                font-weight: bold;
+              }
+
+              .note {
+                margin-top: 18px;
+                color: #6b7280;
+                font-size: 13px;
+                line-height: 1.45;
+              }
+
+              @media only screen and (max-width: 600px) {
+                body {
+                  padding: 12px !important;
+                }
+
+                .container {
+                  width: 100% !important;
+                  max-width: 100% !important;
+                  border-radius: 10px !important;
+                }
+
+                .header {
+                  padding: 18px 16px !important;
+                }
+
+                .header h1 {
+                  font-size: 21px !important;
+                }
+
+                .content {
+                  padding: 18px 16px !important;
+                }
+
+                .meta,
+                .meta tbody,
+                .meta tr,
+                .meta td {
+                  display: block !important;
+                  width: 100% !important;
+                }
+
+                .meta td {
+                  padding: 6px 0 !important;
+                  border-bottom: none !important;
+                }
+
+                .meta td:first-child {
+                  width: 100% !important;
+                  padding-top: 10px !important;
+                  color: #111827 !important;
+                }
+
+                .cards {
+                  display: block !important;
+                  width: 100% !important;
+                  border-spacing: 0 !important;
+                  margin: 0 0 10px 0 !important;
+                }
+
+                .card {
+                  display: block !important;
+                  width: 100% !important;
+                  margin: 0 0 10px 0 !important;
+                  box-sizing: border-box !important;
+                }
+
+                .value {
+                  font-size: 24px !important;
+                }
+
+                .button {
+                  display: block !important;
+                  width: 100% !important;
+                  box-sizing: border-box !important;
+                  text-align: center !important;
+                }
+              }
             </style>
           </head>
           <body>

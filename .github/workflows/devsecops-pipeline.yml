@@ -4,12 +4,24 @@ on:
   pull_request:
     branches:
       - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
+      - edited
 
   push:
     branches:
       - main
 
   workflow_dispatch:
+    inputs:
+      reset_history:
+        description: "Resetear el historial de hallazgos y crear una nueva línea base"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -57,6 +69,8 @@ jobs:
       pages: write
       id-token: write
     uses: ./.github/workflows/security-history.yml
+    with:
+      reset_history: ${{ github.event_name == 'workflow_dispatch' && inputs.reset_history == true }}
     secrets: inherit
 
   phase-4-security-gate:
