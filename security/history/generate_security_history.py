@@ -531,20 +531,78 @@ def generate_html(rows, summary, warnings):
     def table_cell(label: str, value: str) -> str:
         return f'<td data-label="{html.escape(label)}">{value}</td>'
 
+    def select_options(values: List[str], phase_order: bool = False) -> str:
+        if phase_order:
+            order = {"SAST": 0, "SCA": 1, "DAST": 2}
+            values = sorted(values, key=lambda value: (order.get(value, 9), value))
+        else:
+            values = sorted(values)
+
+        return "".join(
+            f'<option value="{html.escape(value, quote=True)}">{html.escape(value)}</option>'
+            for value in values
+        )
+
+    status_values = [
+        status
+        for status in ("Nuevo", "Persistente", "Corregido")
+        if any(row.get("tracking_status") == status for row in rows)
+    ]
+    phase_values = sorted({str(row.get("phase", "")) for row in rows if row.get("phase")})
+    tool_values = sorted({str(row.get("tool", "")) for row in rows if row.get("tool")})
+
+    filter_controls = (
+        '\n    <div class="filters" aria-label="Filtros del historial de hallazgos">\n'
+        '      <div class="filter-grid">\n'
+        '        <label class="filter-control" for="filter-status">\n'
+        '          <span>Estado de seguimiento</span>\n'
+        '          <select id="filter-status" data-filter="status">\n'
+        '            <option value="">Todos</option>\n'
+        f'            {select_options(status_values)}\n'
+        '          </select>\n'
+        '        </label>\n\n'
+        '        <label class="filter-control" for="filter-phase">\n'
+        '          <span>Fase</span>\n'
+        '          <select id="filter-phase" data-filter="phase">\n'
+        '            <option value="">Todas</option>\n'
+        f'            {select_options(phase_values, phase_order=True)}\n'
+        '          </select>\n'
+        '        </label>\n\n'
+        '        <label class="filter-control" for="filter-tool">\n'
+        '          <span>Herramienta</span>\n'
+        '          <select id="filter-tool" data-filter="tool">\n'
+        '            <option value="">Todas</option>\n'
+        f'            {select_options(tool_values)}\n'
+        '          </select>\n'
+        '        </label>\n\n'
+        '        <button type="button" id="clear-filters" class="clear-filters">Limpiar filtros</button>\n'
+        '      </div>\n'
+        '      <p id="filter-summary" class="filter-summary">Mostrando todos los hallazgos.</p>\n'
+        '    </div>\n'
+    )
+
     table_rows = []
 
     for item in rows:
         title = html.escape(item.get("title", ""))
         url = item.get("url") or ""
+        tracking_status = str(item.get("tracking_status", ""))
+        phase = str(item.get("phase", ""))
+        tool = str(item.get("tool", ""))
 
         if url:
             title = f'<a href="{html.escape(url)}">{title}</a>'
 
         table_rows.append(
-            "<tr>"
-            + table_cell("Seguimiento", status_badge(item.get("tracking_status", "")))
-            + table_cell("Fase", html.escape(item.get("phase", "")))
-            + table_cell("Herramienta", html.escape(item.get("tool", "")))
+            (
+                '<tr '
+                f'data-status="{html.escape(tracking_status, quote=True)}" '
+                f'data-phase="{html.escape(phase, quote=True)}" '
+                f'data-tool="{html.escape(tool, quote=True)}">'
+            )
+            + table_cell("Seguimiento", status_badge(tracking_status))
+            + table_cell("Fase", html.escape(phase))
+            + table_cell("Herramienta", html.escape(tool))
             + table_cell("Severidad", severity_badge(item.get("severity", "")))
             + table_cell("Regla / CVE", html.escape(item.get("rule_id", "")))
             + table_cell("Hallazgo", title)
@@ -562,6 +620,59 @@ def generate_html(rows, summary, warnings):
         f"<th>{html.escape(header)}</th>"
         for header in headers
     )
+
+    filter_script = """
+  <script>
+    (function () {
+      const statusFilter = document.getElementById("filter-status");
+      const phaseFilter = document.getElementById("filter-phase");
+      const toolFilter = document.getElementById("filter-tool");
+      const clearButton = document.getElementById("clear-filters");
+      const summary = document.getElementById("filter-summary");
+      const rows = Array.from(document.querySelectorAll("tbody tr[data-status]"));
+
+      function applyFilters() {
+        const selectedStatus = statusFilter.value;
+        const selectedPhase = phaseFilter.value;
+        const selectedTool = toolFilter.value;
+        let visible = 0;
+
+        rows.forEach(function (row) {
+          const matchStatus = !selectedStatus || row.dataset.status === selectedStatus;
+          const matchPhase = !selectedPhase || row.dataset.phase === selectedPhase;
+          const matchTool = !selectedTool || row.dataset.tool === selectedTool;
+          const shouldShow = matchStatus && matchPhase && matchTool;
+
+          row.style.display = shouldShow ? "" : "none";
+          if (shouldShow) {
+            visible += 1;
+          }
+        });
+
+        if (summary) {
+          summary.textContent = "Mostrando " + visible + " de " + rows.length + " hallazgos.";
+        }
+      }
+
+      [statusFilter, phaseFilter, toolFilter].forEach(function (filter) {
+        if (filter) {
+          filter.addEventListener("change", applyFilters);
+        }
+      });
+
+      if (clearButton) {
+        clearButton.addEventListener("click", function () {
+          statusFilter.value = "";
+          phaseFilter.value = "";
+          toolFilter.value = "";
+          applyFilters();
+        });
+      }
+
+      applyFilters();
+    })();
+  </script>
+    """
 
     css = """
       :root {
@@ -669,6 +780,61 @@ def generate_html(rows, summary, warnings):
         border-radius: 12px;
         padding: 18px;
         margin-top: 18px;
+      }
+
+      .filters {
+        margin: 16px 0 18px;
+        padding: 14px;
+        background: #f9fafb;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+      }
+
+      .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(160px, 1fr)) auto;
+        gap: 12px;
+        align-items: end;
+      }
+
+      .filter-control {
+        display: grid;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #374151;
+      }
+
+      .filter-control select {
+        width: 100%;
+        min-height: 38px;
+        padding: 8px 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        background: #ffffff;
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .clear-filters {
+        min-height: 38px;
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #374151;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .clear-filters:hover {
+        background: #f3f4f6;
+      }
+
+      .filter-summary {
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 13px;
       }
 
       .table-wrap {
@@ -815,6 +981,14 @@ def generate_html(rows, summary, warnings):
           gap: 10px;
         }
 
+        .filter-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .clear-filters {
+          width: 100%;
+        }
+
         .card {
           padding: 14px;
         }
@@ -938,6 +1112,8 @@ def generate_html(rows, summary, warnings):
       Si aparece por primera vez, se marca como <b>Nuevo</b>.
     </p>
 
+    {filter_controls}
+
     <div class="table-wrap">
       <table>
         <thead>
@@ -949,6 +1125,8 @@ def generate_html(rows, summary, warnings):
       </table>
     </div>
   </section>
+
+  {filter_script}
 </body>
 </html>"""
 
