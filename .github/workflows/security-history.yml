@@ -205,10 +205,10 @@ jobs:
           fi
 
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release create "$RELEASE_TAG"               --title "Security History Latest"               --notes "Último snapshot del historial de hallazgos de seguridad generado automáticamente por el pipeline DevSecOps."
+            gh release create "$RELEASE_TAG" --title "Security History Latest" --notes "Último snapshot del historial de hallazgos de seguridad generado automáticamente por el pipeline DevSecOps."
           fi
 
-          gh release upload "$RELEASE_TAG"             security/evidence/history/current-findings.json             security/evidence/history/security-history.json             security/evidence/history/summary.env             --clobber
+          gh release upload "$RELEASE_TAG" security/evidence/history/current-findings.json security/evidence/history/security-history.json security/evidence/history/summary.env --clobber
 
           echo "Security History snapshot published to release: ${RELEASE_TAG}"
 

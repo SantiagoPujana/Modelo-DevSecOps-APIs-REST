@@ -1,265 +1,528 @@
 name: DevSecOps Pipeline Main Workflow
 
+
+
 on:
+
   pull_request:
+
     branches:
+
       - main
 
+
+
   push:
+
     branches:
+
       - main
+
+
 
   workflow_dispatch:
 
+
+
 permissions:
+
   contents: write
+
   actions: read
+
   pages: write
+
   id-token: write
 
+
+
 jobs:
+
   phase-1-sast:
+
     name: Phase 1 - SAST / sast
+
     uses: ./.github/workflows/sast-sonarqube.yml
+
     secrets: inherit
+
+
 
   phase-2-1-sca-trivy:
+
     name: Phase 2.1 - SCA / trivy
+
     needs: phase-1-sast
+
     uses: ./.github/workflows/sca-trivy.yml
+
     secrets: inherit
+
+
 
   phase-2-2-sca-odc:
+
     name: Phase 2.2 - SCA / dependency-check
+
     needs: phase-1-sast
+
     uses: ./.github/workflows/sca-dependency-check.yml
+
     secrets: inherit
+
+
 
   phase-3-dast:
+
     name: Phase 3 - DAST / zap
+
     needs:
+
       - phase-2-1-sca-trivy
+
       - phase-2-2-sca-odc
+
     uses: ./.github/workflows/dast-zap.yml
+
     secrets: inherit
+
+
 
   phase-4-security-history:
+
     name: Phase 4 - Security Findings History
+
     needs:
+
       - phase-1-sast
+
       - phase-2-1-sca-trivy
+
       - phase-2-2-sca-odc
+
       - phase-3-dast
+
     if: always()
+
     permissions:
+
       contents: write
+
       actions: read
+
     uses: ./.github/workflows/security-history.yml
+
     secrets: inherit
 
+
+
   phase-4-publish-security-history:
+
     name: Phase 4 - Publish Security History to GitHub Pages
+
     needs: phase-4-security-history
+
     if: always() && needs.phase-4-security-history.result == 'success'
+
     runs-on: ubuntu-latest
 
+
+
     permissions:
+
       contents: read
+
       actions: read
+
       pages: write
+
       id-token: write
 
+
+
     environment:
+
       name: github-pages
+
       url: ${{ steps.deployment.outputs.page_url }}
 
+
+
     outputs:
+
       report_url: ${{ steps.page_links.outputs.report_url }}
 
+
+
     steps:
+
       - name: Download Security History artifact
+
         uses: actions/download-artifact@v8
+
         with:
+
           name: security-history-report
+
           path: security/evidence/history
 
+
+
       - name: Prepare GitHub Pages content
+
         id: prepare
+
         shell: bash
+
         run: |
+
           RUN_ID="${{ github.run_id }}"
+
           REPORT_PATH="history/${RUN_ID}/"
+
+
 
           mkdir -p "public/${REPORT_PATH}"
 
+
+
           cp security/evidence/history/security-history.html "public/${REPORT_PATH}/index.html"
+
           cp security/evidence/history/security-history.json "public/${REPORT_PATH}/security-history.json" || true
+
           cp security/evidence/history/current-findings.json "public/${REPORT_PATH}/current-findings.json" || true
+
           cp security/evidence/history/summary.env "public/${REPORT_PATH}/summary.env" || true
 
+
+
           cat > public/index.html <<EOF
+
           <!doctype html>
+
           <html lang="es">
+
           <head>
+
             <meta charset="utf-8">
+
             <meta name="viewport" content="width=device-width, initial-scale=1">
+
             <title>Security History Reports</title>
+
             <style>
+
               body { font-family: Arial, Helvetica, sans-serif; margin: 32px; color: #1f2937; background: #f8fafc; }
+
               .card { background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 22px; max-width: 780px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+
               a { color: #2563eb; font-weight: bold; }
+
               code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; }
+
             </style>
+
           </head>
+
           <body>
+
             <div class="card">
+
               <h1>Security History Reports</h1>
+
               <p>Último reporte generado por el pipeline DevSecOps.</p>
+
               <p><b>Repositorio:</b> <code>${{ github.repository }}</code></p>
+
               <p><b>Run:</b> <code>${{ github.run_id }}</code></p>
+
               <p><a href="./${REPORT_PATH}">Ver historial de seguridad</a></p>
+
             </div>
+
           </body>
+
           </html>
+
           EOF
+
+
 
           echo "report_path=${REPORT_PATH}" >> "$GITHUB_OUTPUT"
 
+
+
       - name: Configure GitHub Pages
+
         uses: actions/configure-pages@v5
 
+
+
       - name: Upload GitHub Pages artifact
+
         uses: actions/upload-pages-artifact@v3
+
         with:
+
           path: public
 
+
+
       - name: Deploy to GitHub Pages
+
         id: deployment
+
         uses: actions/deploy-pages@v4
 
+
+
       - name: Build report URL
+
         id: page_links
+
         shell: bash
+
         run: |
+
           BASE_URL="${{ steps.deployment.outputs.page_url }}"
+
           REPORT_PATH="${{ steps.prepare.outputs.report_path }}"
+
           REPORT_URL="${BASE_URL%/}/${REPORT_PATH}"
 
+
+
           echo "report_url=${REPORT_URL}" >> "$GITHUB_OUTPUT"
+
           echo "## Security History publicado" >> "$GITHUB_STEP_SUMMARY"
+
           echo "" >> "$GITHUB_STEP_SUMMARY"
+
           echo "Reporte HTML: ${REPORT_URL}" >> "$GITHUB_STEP_SUMMARY"
 
+
+
       - name: Load Security History summary
+
         shell: bash
+
         run: |
+
           if [ -f security/evidence/history/summary.env ]; then
+
             cat security/evidence/history/summary.env >> "$GITHUB_ENV"
+
           fi
+
+
 
       - name: Validate email settings
+
         id: email_settings
+
         env:
+
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
+
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
+
           SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+
           MAIL_TO: ${{ secrets.MAIL_TO }}
+
         shell: bash
+
         run: |
+
           if [ -n "$SMTP_HOST" ] && [ -n "$SMTP_PORT" ] && [ -n "$SMTP_USERNAME" ] && [ -n "$SMTP_PASSWORD" ] && [ -n "$MAIL_TO" ]; then
+
             echo "enabled=true" >> "$GITHUB_OUTPUT"
+
           else
+
             echo "enabled=false" >> "$GITHUB_OUTPUT"
+
             echo "No se enviará correo: falta una o más variables SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD o MAIL_TO."
+
           fi
+
+
 
       - name: Build Security History email body
+
         if: ${{ steps.email_settings.outputs.enabled == 'true' }}
+
         env:
+
           REPORT_URL: ${{ steps.page_links.outputs.report_url }}
+
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
           REPO: ${{ github.repository }}
+
           REF_NAME: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+
           ACTOR: ${{ github.actor }}
+
           EVENT_NAME: ${{ github.event_name }}
+
         shell: bash
+
         run: |
+
           cat > email.html <<EOF
+
           <!doctype html>
+
           <html lang="es">
+
           <head>
+
             <meta charset="utf-8">
+
             <style>
+
               body { font-family: Arial, Helvetica, sans-serif; color: #1f2937; background: #f8fafc; margin: 0; padding: 24px; }
+
               .container { max-width: 760px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; }
+
               .header { background: #111827; color: #ffffff; padding: 22px 24px; }
+
               .header h1 { margin: 0; font-size: 24px; }
+
               .header p { margin: 8px 0 0; color: #d1d5db; }
+
               .content { padding: 22px 24px; }
+
               .meta { width: 100%; border-collapse: collapse; margin: 14px 0 20px; }
+
               .meta td { padding: 7px 6px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+
               .meta td:first-child { font-weight: bold; color: #374151; width: 150px; }
+
               .cards { display: table; width: 100%; table-layout: fixed; border-spacing: 8px; }
+
               .card { display: table-cell; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; text-align: center; }
+
               .value { font-size: 26px; font-weight: bold; color: #111827; }
+
               .label { font-size: 12px; color: #6b7280; margin-top: 4px; }
+
               .button { display: inline-block; margin-top: 18px; padding: 12px 16px; background: #2563eb; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: bold; }
+
               .note { margin-top: 18px; color: #6b7280; font-size: 13px; }
+
             </style>
+
           </head>
+
           <body>
+
             <div class="container">
+
               <div class="header">
+
                 <h1>📊 Security History generado</h1>
+
                 <p>Seguimiento de hallazgos SAST, SCA y DAST del pipeline DevSecOps.</p>
+
               </div>
+
               <div class="content">
+
                 <table class="meta">
+
                   <tr><td>Repositorio</td><td>$REPO</td></tr>
+
                   <tr><td>Rama/PR</td><td>$REF_NAME</td></tr>
+
                   <tr><td>Actor</td><td>$ACTOR</td></tr>
+
                   <tr><td>Evento</td><td>$EVENT_NAME</td></tr>
+
                   <tr><td>Run</td><td><a href="$RUN_URL">Abrir ejecución en GitHub Actions</a></td></tr>
+
                 </table>
 
-                <div class="cards">
-                  <div class="card"><div class="value">${current_total:-N/A}</div><div class="label">Hallazgos actuales</div></div>
-                  <div class="card"><div class="value">${new_count:-N/A}</div><div class="label">Nuevos</div></div>
-                  <div class="card"><div class="value">${persistent_count:-N/A}</div><div class="label">Persistentes</div></div>
-                  <div class="card"><div class="value">${fixed_count:-N/A}</div><div class="label">Corregidos</div></div>
-                </div>
+
 
                 <div class="cards">
-                  <div class="card"><div class="value">${sast_current:-N/A}</div><div class="label">SAST</div></div>
-                  <div class="card"><div class="value">${sca_current:-N/A}</div><div class="label">SCA</div></div>
-                  <div class="card"><div class="value">${dast_current:-N/A}</div><div class="label">DAST</div></div>
+
+                  <div class="card"><div class="value">${current_total:-N/A}</div><div class="label">Hallazgos actuales</div></div>
+
+                  <div class="card"><div class="value">${new_count:-N/A}</div><div class="label">Nuevos</div></div>
+
+                  <div class="card"><div class="value">${persistent_count:-N/A}</div><div class="label">Persistentes</div></div>
+
+                  <div class="card"><div class="value">${fixed_count:-N/A}</div><div class="label">Corregidos</div></div>
+
                 </div>
+
+
+
+                <div class="cards">
+
+                  <div class="card"><div class="value">${sast_current:-N/A}</div><div class="label">SAST</div></div>
+
+                  <div class="card"><div class="value">${sca_current:-N/A}</div><div class="label">SCA</div></div>
+
+                  <div class="card"><div class="value">${dast_current:-N/A}</div><div class="label">DAST</div></div>
+
+                </div>
+
+
 
                 <a class="button" href="$REPORT_URL">Ver reporte</a>
+
                 <p class="note">Este reporte fue generado automáticamente por el componente de historial de hallazgos del modelo DevSecOps.</p>
+
               </div>
+
             </div>
+
           </body>
+
           </html>
+
           EOF
 
+
+
       - name: Send Security History Slack alert
+
         if: always()
+
         env:
+
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
           REPORT_URL: ${{ steps.page_links.outputs.report_url }}
+
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
           REPO: ${{ github.repository }}
+
           REF_NAME: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+
           ACTOR: ${{ github.actor }}
+
           EVENT_NAME: ${{ github.event_name }}
+
         shell: bash
+
         run: |
+
           if [ -z "$SLACK_WEBHOOK_URL" ]; then
+
             echo "SLACK_WEBHOOK_URL no configurado. Se omite alerta Slack."
+
             exit 0
+
           fi
+
+
 
           jq -n \
             --arg repo "$REPO" \
@@ -281,164 +544,375 @@ jobs:
                 {
                   color: "#2563EB",
                   blocks: [
-                    {type:"header", text:{type:"plain_text", text:"📊 Security History generado", emoji:true}},
-                    {type:"section", text:{type:"mrkdwn", text:("*Repositorio:* `" + $repo + "`\n*Reporte HTML:* <" + $report_url + "|Abrir historial de seguridad>")}},
-                    {type:"context", elements:[
-                      {type:"mrkdwn", text:("*Rama/PR:* " + $ref)},
-                      {type:"mrkdwn", text:("*Actor:* " + $actor)},
-                      {type:"mrkdwn", text:("*Evento:* " + $event)},
-                      {type:"mrkdwn", text:("*Run:* " + $run_id)}
-                    ]},
-                    {type:"section", fields:[
-                      {type:"mrkdwn", text:("*Hallazgos actuales*\n" + $current)},
-                      {type:"mrkdwn", text:("*Nuevos*\n" + $new)},
-                      {type:"mrkdwn", text:("*Persistentes*\n" + $persistent)},
-                      {type:"mrkdwn", text:("*Corregidos*\n" + $fixed)},
-                      {type:"mrkdwn", text:("*SAST*\n" + $sast)},
-                      {type:"mrkdwn", text:("*SCA*\n" + $sca)},
-                      {type:"mrkdwn", text:("*DAST*\n" + $dast)}
-                    ]},
-                    {type:"actions", elements:[
-                      {type:"button", text:{type:"plain_text", text:"Ver reporte", emoji:true}, style:"primary", url:$report_url},
-                      {type:"button", text:{type:"plain_text", text:"GitHub Actions", emoji:true}, url:$run_url}
-                    ]}
+                    {
+                      type: "header",
+                      text: {
+                        type: "plain_text",
+                        text: "📊 Security History generado",
+                        emoji: true
+                      }
+                    },
+                    {
+                      type: "section",
+                      text: {
+                        type: "mrkdwn",
+                        text: ("*Repositorio:* `" + $repo + "`\n*Reporte HTML:* <" + $report_url + "|Abrir historial de seguridad>")
+                      }
+                    },
+                    {
+                      type: "context",
+                      elements: [
+                        {
+                          type: "mrkdwn",
+                          text: ("*Rama/PR:* " + $ref)
+                        },
+                        {
+                          type: "mrkdwn",
+                          text: ("*Actor:* " + $actor)
+                        },
+                        {
+                          type: "mrkdwn",
+                          text: ("*Evento:* " + $event)
+                        },
+                        {
+                          type: "mrkdwn",
+                          text: ("*Run:* " + $run_id)
+                        }
+                      ]
+                    },
+                    {
+                      type: "divider"
+                    },
+                    {
+                      type: "section",
+                      text: {
+                        type: "mrkdwn",
+                        text: (
+                          "*Resumen de hallazgos*\n" +
+                          "```" +
+                          "Concepto             Valor\n" +
+                          "-------------------------\n" +
+                          "Hallazgos actuales   " + $current + "\n" +
+                          "Nuevos               " + $new + "\n" +
+                          "Persistentes         " + $persistent + "\n" +
+                          "Corregidos           " + $fixed + "\n" +
+                          "```"
+                        )
+                      }
+                    },
+                    {
+                      type: "section",
+                      text: {
+                        type: "mrkdwn",
+                        text: (
+                          "*Hallazgos por fase*\n" +
+                          "```" +
+                          "Fase                 Hallazgos\n" +
+                          "-----------------------------\n" +
+                          "SAST                 " + $sast + "\n" +
+                          "SCA                  " + $sca + "\n" +
+                          "DAST                 " + $dast + "\n" +
+                          "```"
+                        )
+                      }
+                    },
+                    {
+                      type: "actions",
+                      elements: [
+                        {
+                          type: "button",
+                          text: {
+                            type: "plain_text",
+                            text: "Ver reporte",
+                            emoji: true
+                          },
+                          style: "primary",
+                          url: $report_url
+                        },
+                        {
+                          type: "button",
+                          text: {
+                            type: "plain_text",
+                            text: "GitHub Actions",
+                            emoji: true
+                          },
+                          url: $run_url
+                        }
+                      ]
+                    }
                   ]
                 }
               ]
             }' > slack_payload.json
 
+
+
           echo "Slack payload:"
+
           cat slack_payload.json | jq .
 
+
+
           RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST -H "Content-Type: application/json" --data @slack_payload.json "$SLACK_WEBHOOK_URL")
+
           BODY=$(echo "$RESPONSE" | sed '$d')
+
           CODE=$(echo "$RESPONSE" | tail -n1)
 
+
+
           echo "Slack HTTP code: $CODE"
+
           echo "Slack response body: $BODY"
 
+
+
           if [ "$CODE" -lt 200 ] || [ "$CODE" -ge 300 ]; then
+
             echo "Slack webhook request failed"
+
             exit 1
+
           fi
 
+
+
       - name: Send Security History email alert
+
         if: ${{ steps.email_settings.outputs.enabled == 'true' }}
+
         uses: dawidd6/action-send-mail@v16
+
         with:
+
           server_address: ${{ secrets.SMTP_HOST }}
+
           server_port: ${{ secrets.SMTP_PORT }}
+
           secure: true
+
           username: ${{ secrets.SMTP_USERNAME }}
+
           password: ${{ secrets.SMTP_PASSWORD }}
+
           subject: "[Security History] Reporte generado - ${{ github.repository }}"
+
           to: ${{ secrets.MAIL_TO }}
+
           from: "DevSecOps Bot ${{ secrets.SMTP_USERNAME }}"
+
           html_body: file://email.html
 
 
+
+
+
   phase-4-security-gate:
+
     name: Phase 4 - Security Gate
+
     needs:
+
       - phase-1-sast
+
       - phase-2-1-sca-trivy
+
       - phase-2-2-sca-odc
+
       - phase-3-dast
+
       - phase-4-security-history
+
     if: always()
+
     runs-on: ubuntu-latest
+
     steps:
+
       - name: Validate each phase
+
         id: validate_phases
+
         run: |
+
           PHASE_1_STATUS="${{ needs.phase-1-sast.outputs.security_status }}"
+
           PHASE_2_1_STATUS="${{ needs.phase-2-1-sca-trivy.outputs.security_status }}"
+
           PHASE_2_2_STATUS="${{ needs.phase-2-2-sca-odc.outputs.security_status }}"
+
           PHASE_3_STATUS="${{ needs.phase-3-dast.outputs.security_status }}"
+
           HISTORY_STATUS="${{ needs.phase-4-security-history.outputs.history_status }}"
 
+
+
           echo "PHASE_1_STATUS=$PHASE_1_STATUS"
+
           echo "PHASE_2_1_STATUS=$PHASE_2_1_STATUS"
+
           echo "PHASE_2_2_STATUS=$PHASE_2_2_STATUS"
+
           echo "PHASE_3_STATUS=$PHASE_3_STATUS"
+
           echo "HISTORY_STATUS=$HISTORY_STATUS"
+
+
 
           FINAL_STATUS="passed"
 
+
+
           if [ "$PHASE_1_STATUS" != "passed" ] || [ "$PHASE_2_1_STATUS" != "passed" ] || [ "$PHASE_2_2_STATUS" != "passed" ] || [ "$PHASE_3_STATUS" != "passed" ] || [ "$HISTORY_STATUS" != "passed" ]; then
+
             FINAL_STATUS="failed"
+
           fi
+
+
 
           echo "final_status=$FINAL_STATUS" >> "$GITHUB_OUTPUT"
 
+
+
       - name: Write pipeline summary
+
         run: |
+
           echo "## Security Pipeline Result" >> "$GITHUB_STEP_SUMMARY"
+
           echo "" >> "$GITHUB_STEP_SUMMARY"
+
           echo "| Phase | Status |" >> "$GITHUB_STEP_SUMMARY"
+
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+
           echo "| Phase 1 - SAST | ${{ needs.phase-1-sast.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+
           echo "| Phase 2.1 - SCA / Trivy | ${{ needs.phase-2-1-sca-trivy.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+
           echo "| Phase 2.2 - SCA / Dependency-Check | ${{ needs.phase-2-2-sca-odc.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+
           echo "| Phase 3 - DAST / ZAP | ${{ needs.phase-3-dast.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
+
           echo "| Phase 4 - Security History | ${{ needs.phase-4-security-history.outputs.history_status }} |" >> "$GITHUB_STEP_SUMMARY"
+
           echo "| History - New findings | ${{ needs.phase-4-security-history.outputs.new_count }} |" >> "$GITHUB_STEP_SUMMARY"
+
           echo "| History - Persistent findings | ${{ needs.phase-4-security-history.outputs.persistent_count }} |" >> "$GITHUB_STEP_SUMMARY"
+
           echo "| History - Fixed findings | ${{ needs.phase-4-security-history.outputs.fixed_count }} |" >> "$GITHUB_STEP_SUMMARY"
+
           echo "| Phase 4 - Security Gate | ${{ steps.validate_phases.outputs.final_status }} |" >> "$GITHUB_STEP_SUMMARY"
 
+
+
       - name: Fail pipeline if gate failed
+
         run: |
+
           if [ "${{ steps.validate_phases.outputs.final_status }}" != "passed" ]; then
+
             echo "Security gate failed"
+
             exit 1
+
           fi
+
+
 
   phase-5-deploy-policy:
+
     name: Phase 5 - Deploy Policy Check
+
     needs: phase-4-security-gate
+
     uses: ./.github/workflows/deploy-policy-check.yml
+
     secrets: inherit
+
     with:
+
       target_environment: prod
+
       release_approved: "true"
 
+
+
   phase-6-monitoring:
+
     name: Phase 6 - Monitoring Check
+
     needs: phase-5-deploy-policy
+
     if: ${{ needs.phase-5-deploy-policy.outputs.deploy_policy_status == 'passed' }}
+
     uses: ./.github/workflows/monitoring-check.yml
+
     secrets: inherit
 
+
+
   phase-7-final-gate:
+
     name: Phase 7 - Final Pipeline Gate
+
     needs:
+
       - phase-5-deploy-policy
+
       - phase-6-monitoring
+
     if: always()
+
     runs-on: ubuntu-latest
+
     steps:
+
       - name: Validate final phases
+
         run: |
+
           DEPLOY_STATUS="${{ needs.phase-5-deploy-policy.outputs.deploy_policy_status }}"
+
           MONITORING_RESULT="${{ needs.phase-6-monitoring.result }}"
+
           MONITORING_STATUS="${{ needs.phase-6-monitoring.outputs.monitoring_status }}"
 
+
+
           echo "DEPLOY_STATUS=$DEPLOY_STATUS"
+
           echo "MONITORING_RESULT=$MONITORING_RESULT"
+
           echo "MONITORING_STATUS=$MONITORING_STATUS"
 
+
+
           if [ "$DEPLOY_STATUS" != "passed" ] || [ "$MONITORING_RESULT" != "success" ] || [ "$MONITORING_STATUS" != "passed" ]; then
+
             echo "Final pipeline gate failed"
+
             exit 1
+
           fi
 
+
+
       - name: Write final summary
+
         run: |
+
           echo "## Final Pipeline Result" >> "$GITHUB_STEP_SUMMARY"
+
           echo "" >> "$GITHUB_STEP_SUMMARY"
+
           echo "| Phase | Status |" >> "$GITHUB_STEP_SUMMARY"
+
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+
           echo "| Phase 5 - Deploy Policy | ${{ needs.phase-5-deploy-policy.outputs.deploy_policy_status }} |" >> "$GITHUB_STEP_SUMMARY"
+
           echo "| Phase 6 - Monitoring result | ${{ needs.phase-6-monitoring.result }} |" >> "$GITHUB_STEP_SUMMARY"
+
           echo "| Phase 6 - Monitoring status | ${{ needs.phase-6-monitoring.outputs.monitoring_status }} |" >> "$GITHUB_STEP_SUMMARY"
