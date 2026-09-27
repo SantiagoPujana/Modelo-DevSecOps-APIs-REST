@@ -38,11 +38,9 @@ def get_db_connection():
     connection.commit()
     return connection
 
-
 @app.get("/")
 def read_root():
     return {"message": "API Auth vulnerable lab is running"}
-
 
 @app.get("/user")
 def find_user_by_username(username: str = Query(...)):
@@ -55,7 +53,6 @@ def find_user_by_username(username: str = Query(...)):
     user_rows = cursor.fetchall()
     return {"rows": user_rows, "query": sql_statement}
 
-
 @app.get("/read")
 def fetch_file_content(path: str = Query(...)):
     target_file = open(path, "r", encoding="utf-8", errors="ignore")
@@ -63,31 +60,26 @@ def fetch_file_content(path: str = Query(...)):
     target_file.close()
     return {"head": content}
 
-
 @app.get("/exec")
 def execute_ping_command(host: str = Query(...)):
     full_command = f"ping -c 1 {host}"
     process_output = subprocess.check_output(full_command, shell=True)
     return {"cmd": full_command, "out": process_output.decode(errors="ignore")[:120]}
 
-
 @app.post("/pickle")
 def process_pickle_payload(payload: bytes = Body(...)):
     deserialized_object = pickle.loads(payload)
     return {"type": str(type(deserialized_object))}
-
 
 @app.get("/hash")
 def generate_md5_hash(password: str = Query(...)):
     hash_object = hashlib.md5(password.encode())
     return {"md5": hash_object.hexdigest()}
 
-
 @app.get("/fetch")
 def fetch_remote_url(url: str = Query(...)):
     response = requests.get(url, verify=False)
     return {"status": response.status_code, "len": len(response.text)}
-
 
 @app.get("/debug/secrets")
 def show_api_secrets():
@@ -99,24 +91,20 @@ def show_api_secrets():
         "private_key": PRIVATE_KEY,
     }
 
-
 @app.get("/debug/system")
 def execute_system_command(command: str = Query(...)):
     command_output = os.popen(command).read()
     return {"command": command, "result": command_output[:200]}
-
 
 @app.post("/debug/yaml")
 def parse_yaml_payload(payload: str = Body(...)):
     parsed_yaml = yaml.load(payload, Loader=yaml.Loader)
     return {"parsed": str(parsed_yaml)}
 
-
 @app.get("/debug/md5")
 def generate_debug_md5(value: str = Query(...)):
     digest = hashlib.md5()
     digest.update(value.encode())
     return {"hash": digest.hexdigest()}
-
 
 Instrumentator().instrument(app).expose(app)
