@@ -15,6 +15,9 @@ on:
       fixed_count:
         description: "Fixed findings count"
         value: ${{ jobs.history.outputs.fixed_count }}
+      report_url:
+        description: "Published Security History HTML URL"
+        value: ${{ jobs.history.outputs.report_url }}
     secrets:
       SONAR_TOKEN:
         required: false
@@ -22,18 +25,44 @@ on:
         required: false
       SONAR_ORG:
         required: false
+      SLACK_WEBHOOK_URL:
+        required: false
+      SMTP_HOST:
+        required: false
+      SMTP_PORT:
+        required: false
+      SMTP_USERNAME:
+        required: false
+      SMTP_PASSWORD:
+        required: false
+      MAIL_TO:
+        required: false
 
 jobs:
   history:
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
       actions: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
     outputs:
       history_status: ${{ steps.final_status.outputs.history_status }}
       new_count: ${{ steps.summary.outputs.new_count }}
       persistent_count: ${{ steps.summary.outputs.persistent_count }}
       fixed_count: ${{ steps.summary.outputs.fixed_count }}
+      report_url: ${{ steps.page_links.outputs.report_url }}
+      slack_enabled: ${{ steps.notify_settings.outputs.slack_enabled }}
+      email_enabled: ${{ steps.notify_settings.outputs.email_enabled }}
+      slack_payload_b64: ${{ steps.slack_msg.outputs.slack_payload_b64 }}
+      email_body_b64: ${{ steps.email_msg.outputs.email_body_b64 }}
+      email_subject: ${{ steps.email_msg.outputs.email_subject }}
 
     steps:
       - name: Checkout
@@ -67,7 +96,7 @@ jobs:
 
           echo "Trying to restore previous findings from release: ${RELEASE_TAG}"
 
-          if gh release download "$RELEASE_TAG"             --pattern "current-findings.json"             --dir ".security-history-cache"             --clobber; then
+          if gh release download "$RELEASE_TAG" --pattern "current-findings.json" --dir ".security-history-cache" --clobber; then
             cp ".security-history-cache/current-findings.json" "$PREVIOUS_FILE"
             cp ".security-history-cache/current-findings.json" "$PREVIOUS_EVIDENCE_FILE"
             echo "Previous findings restored from release asset current-findings.json."
@@ -208,7 +237,11 @@ jobs:
             gh release create "$RELEASE_TAG" --title "Security History Latest" --notes "Último snapshot del historial de hallazgos de seguridad generado automáticamente por el pipeline DevSecOps."
           fi
 
-          gh release upload "$RELEASE_TAG" security/evidence/history/current-findings.json security/evidence/history/security-history.json security/evidence/history/summary.env --clobber
+          gh release upload "$RELEASE_TAG" \
+            security/evidence/history/current-findings.json \
+            security/evidence/history/security-history.json \
+            security/evidence/history/summary.env \
+            --clobber
 
           echo "Security History snapshot published to release: ${RELEASE_TAG}"
 
@@ -225,6 +258,9 @@ jobs:
             echo "persistent_count=0" >> "$GITHUB_OUTPUT"
             echo "fixed_count=0" >> "$GITHUB_OUTPUT"
             echo "current_total=0" >> "$GITHUB_OUTPUT"
+            echo "sast_current=0" >> "$GITHUB_OUTPUT"
+            echo "sca_current=0" >> "$GITHUB_OUTPUT"
+            echo "dast_current=0" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Upload security history artifact
@@ -241,6 +277,299 @@ jobs:
             security/evidence/history/summary.env
           if-no-files-found: warn
 
+      - name: Prepare GitHub Pages content
+        id: prepare
+        if: always()
+        shell: bash
+        run: |
+          RUN_ID="${{ github.run_id }}"
+          REPORT_PATH="history/${RUN_ID}/"
+
+          mkdir -p "public/${REPORT_PATH}"
+
+          cp security/evidence/history/security-history.html "public/${REPORT_PATH}/index.html"
+          cp security/evidence/history/security-history.json "public/${REPORT_PATH}/security-history.json" || true
+          cp security/evidence/history/current-findings.json "public/${REPORT_PATH}/current-findings.json" || true
+          cp security/evidence/history/summary.env "public/${REPORT_PATH}/summary.env" || true
+
+          cat > public/index.html <<EOF
+          <!doctype html>
+          <html lang="es">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Security History Reports</title>
+            <style>
+              body { font-family: Arial, Helvetica, sans-serif; margin: 32px; color: #1f2937; background: #f8fafc; }
+              .card { background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 22px; max-width: 780px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+              a { color: #2563eb; font-weight: bold; }
+              code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <h1>Security History Reports</h1>
+              <p>Último reporte generado por el pipeline DevSecOps.</p>
+              <p><b>Repositorio:</b> <code>${{ github.repository }}</code></p>
+              <p><b>Run:</b> <code>${{ github.run_id }}</code></p>
+              <p><a href="./${REPORT_PATH}">Ver historial de seguridad</a></p>
+            </div>
+          </body>
+          </html>
+          EOF
+
+          echo "report_path=${REPORT_PATH}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure GitHub Pages
+        if: always()
+        uses: actions/configure-pages@v5
+
+      - name: Upload GitHub Pages artifact
+        if: always()
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        if: always()
+        uses: actions/deploy-pages@v4
+
+      - name: Build report URL
+        id: page_links
+        if: always()
+        shell: bash
+        run: |
+          BASE_URL="${{ steps.deployment.outputs.page_url }}"
+          REPORT_PATH="${{ steps.prepare.outputs.report_path }}"
+          REPORT_URL="${BASE_URL%/}/${REPORT_PATH}"
+
+          echo "report_url=${REPORT_URL}" >> "$GITHUB_OUTPUT"
+          echo "## Security History publicado" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Reporte HTML: ${REPORT_URL}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Validate notification settings
+        id: notify_settings
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+        shell: bash
+        run: |
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            echo "slack_enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "slack_enabled=false" >> "$GITHUB_OUTPUT"
+            echo "No se enviará Slack: falta SLACK_WEBHOOK_URL."
+          fi
+
+          if [ -n "$SMTP_HOST" ] && [ -n "$SMTP_PORT" ] && [ -n "$SMTP_USERNAME" ] && [ -n "$SMTP_PASSWORD" ] && [ -n "$MAIL_TO" ]; then
+            echo "email_enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "email_enabled=false" >> "$GITHUB_OUTPUT"
+            echo "No se enviará correo: falta una o más variables SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD o MAIL_TO."
+          fi
+
+      - name: Build Security History Slack payload
+        id: slack_msg
+        if: always()
+        env:
+          REPORT_URL: ${{ steps.page_links.outputs.report_url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          REF_NAME: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          EVENT_NAME: ${{ github.event_name }}
+        shell: bash
+        run: |
+          PAYLOAD=$(jq -c -n \
+            --arg repo "$REPO" \
+            --arg ref "$REF_NAME" \
+            --arg actor "$ACTOR" \
+            --arg event "$EVENT_NAME" \
+            --arg run_id "${{ github.run_id }}" \
+            --arg run_url "$RUN_URL" \
+            --arg report_url "$REPORT_URL" \
+            --arg current "${{ steps.summary.outputs.current_total || '0' }}" \
+            --arg new "${{ steps.summary.outputs.new_count || '0' }}" \
+            --arg persistent "${{ steps.summary.outputs.persistent_count || '0' }}" \
+            --arg fixed "${{ steps.summary.outputs.fixed_count || '0' }}" \
+            --arg sast "${{ steps.summary.outputs.sast_current || '0' }}" \
+            --arg sca "${{ steps.summary.outputs.sca_current || '0' }}" \
+            --arg dast "${{ steps.summary.outputs.dast_current || '0' }}" '
+            {
+              attachments: [
+                {
+                  color: "#2563EB",
+                  blocks: [
+                    {
+                      type: "header",
+                      text: {
+                        type: "plain_text",
+                        text: "📊 Security History generado",
+                        emoji: true
+                      }
+                    },
+                    {
+                      type: "section",
+                      text: {
+                        type: "mrkdwn",
+                        text: ("*Repositorio:* " + $repo)
+                      }
+                    },
+                    {
+                      type: "context",
+                      elements: [
+                        {
+                          type: "mrkdwn",
+                          text: ("*Rama/PR:* " + $ref)
+                        },
+                        {
+                          type: "mrkdwn",
+                          text: ("*Actor:* " + $actor)
+                        },
+                        {
+                          type: "mrkdwn",
+                          text: ("*Evento:* " + $event)
+                        },
+                        {
+                          type: "mrkdwn",
+                          text: ("*Run:* " + $run_id)
+                        }
+                      ]
+                    },
+                    {
+                      type: "section",
+                      text: {
+                        type: "mrkdwn",
+                        text: (
+                          "*Resumen de hallazgos*\n" +
+                          "• Nuevos: `" + $new + "`\n" +
+                          "• Persistentes: `" + $persistent + "`\n" +
+                          "• Corregidos: `" + $fixed + "`\n\n" +
+                          "*Hallazgos por fase*\n" +
+                          "• SAST: `" + $sast + "`\n" +
+                          "• SCA: `" + $sca + "`\n" +
+                          "• DAST: `" + $dast + "`\n\n" +
+                          "*Total de Hallazgos:* `" + $current + "`"
+                        )
+                      }
+                    },
+                    {
+                      type: "actions",
+                      elements: [
+                        {
+                          type: "button",
+                          text: {
+                            type: "plain_text",
+                            text: "Ver reporte",
+                            emoji: true
+                          },
+                          style: "primary",
+                          url: $report_url
+                        },
+                        {
+                          type: "button",
+                          text: {
+                            type: "plain_text",
+                            text: "GitHub Actions",
+                            emoji: true
+                          },
+                          url: $run_url
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }')
+
+          PAYLOAD_B64=$(printf '%s' "$PAYLOAD" | base64 -w0)
+          echo "slack_payload_b64=$PAYLOAD_B64" >> "$GITHUB_OUTPUT"
+
+      - name: Build Security History email body
+        id: email_msg
+        if: always()
+        env:
+          REPORT_URL: ${{ steps.page_links.outputs.report_url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          REF_NAME: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          EVENT_NAME: ${{ github.event_name }}
+        shell: bash
+        run: |
+          SUBJECT="[Security History] Reporte generado - $REPO"
+
+          BODY=$(cat <<EOF
+          <!doctype html>
+          <html lang="es">
+          <head>
+            <meta charset="utf-8">
+            <style>
+              body { font-family: Arial, Helvetica, sans-serif; color: #1f2937; background: #f8fafc; margin: 0; padding: 24px; }
+              .container { max-width: 760px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; }
+              .header { background: #111827; color: #ffffff; padding: 22px 24px; }
+              .header h1 { margin: 0; font-size: 24px; }
+              .header p { margin: 8px 0 0; color: #d1d5db; }
+              .content { padding: 22px 24px; }
+              .meta { width: 100%; border-collapse: collapse; margin: 14px 0 20px; }
+              .meta td { padding: 7px 6px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+              .meta td:first-child { font-weight: bold; color: #374151; width: 150px; }
+              .cards { display: table; width: 100%; table-layout: fixed; border-spacing: 8px; }
+              .card { display: table-cell; background: #4b5563; border: 1px solid #d1d5db; border-radius: 10px; padding: 14px; text-align: center; }
+              .value { font-size: 26px; font-weight: bold; color: #ffffff; }
+              .label { font-size: 12px; color: #e5e7eb; margin-top: 4px; font-weight: 600; }
+              .button { display: inline-block; margin-top: 18px; padding: 12px 16px; background: #2563eb; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: bold; }
+              .note { margin-top: 18px; color: #6b7280; font-size: 13px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>📊 Security History generado</h1>
+                <p>Seguimiento de hallazgos SAST, SCA y DAST del pipeline DevSecOps.</p>
+              </div>
+              <div class="content">
+                <table class="meta">
+                  <tr><td>Repositorio</td><td>$REPO</td></tr>
+                  <tr><td>Rama/PR</td><td>$REF_NAME</td></tr>
+                  <tr><td>Actor</td><td>$ACTOR</td></tr>
+                  <tr><td>Evento</td><td>$EVENT_NAME</td></tr>
+                  <tr><td>Run</td><td><a href="$RUN_URL">Abrir ejecución en GitHub Actions</a></td></tr>
+                </table>
+
+                <div class="cards">
+                  <div class="card"><div class="value">${{ steps.summary.outputs.current_total || '0' }}</div><div class="label">Hallazgos actuales</div></div>
+                  <div class="card"><div class="value">${{ steps.summary.outputs.new_count || '0' }}</div><div class="label">Nuevos</div></div>
+                  <div class="card"><div class="value">${{ steps.summary.outputs.persistent_count || '0' }}</div><div class="label">Persistentes</div></div>
+                  <div class="card"><div class="value">${{ steps.summary.outputs.fixed_count || '0' }}</div><div class="label">Corregidos</div></div>
+                </div>
+
+                <div class="cards">
+                  <div class="card"><div class="value">${{ steps.summary.outputs.sast_current || '0' }}</div><div class="label">SAST</div></div>
+                  <div class="card"><div class="value">${{ steps.summary.outputs.sca_current || '0' }}</div><div class="label">SCA</div></div>
+                  <div class="card"><div class="value">${{ steps.summary.outputs.dast_current || '0' }}</div><div class="label">DAST</div></div>
+                </div>
+
+                <a class="button" href="$REPORT_URL">Ver reporte</a>
+                <p class="note">Este reporte fue generado automáticamente por el componente de historial de hallazgos del modelo DevSecOps.</p>
+              </div>
+            </div>
+          </body>
+          </html>
+          EOF
+          )
+
+          BODY_B64=$(printf '%s' "$BODY" | base64 -w0)
+          echo "email_subject=$SUBJECT" >> "$GITHUB_OUTPUT"
+          echo "email_body_b64=$BODY_B64" >> "$GITHUB_OUTPUT"
+
       - name: Write security history summary
         if: always()
         run: |
@@ -254,6 +583,7 @@ jobs:
           echo "| Corregidos | ${{ steps.summary.outputs.fixed_count || '0' }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- Artifact: ${{ steps.upload_history.outputs.artifact-url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Reporte HTML: ${{ steps.page_links.outputs.report_url }}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Consolidate history result
         id: final_status
@@ -265,3 +595,25 @@ jobs:
             echo "history_status=failed" >> "$GITHUB_OUTPUT"
             exit 1
           fi
+
+  alerts:
+    name: Security History Alerts
+    needs: history
+    if: ${{ needs.history.outputs.history_status == 'passed' }}
+    uses: ./.github/workflows/alerts-send.yml
+    secrets:
+      SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      MAIL_TO: ${{ secrets.MAIL_TO }}
+    with:
+      status: success
+      only_if_failed: false
+      send_slack: ${{ needs.history.outputs.slack_enabled == 'true' }}
+      slack_payload_b64: ${{ needs.history.outputs.slack_payload_b64 }}
+      send_email: ${{ needs.history.outputs.email_enabled == 'true' }}
+      email_subject: ${{ needs.history.outputs.email_subject }}
+      email_body_b64: ${{ needs.history.outputs.email_body_b64 }}
