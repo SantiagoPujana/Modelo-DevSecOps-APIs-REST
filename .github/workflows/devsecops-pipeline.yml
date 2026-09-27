@@ -318,21 +318,18 @@ jobs:
                       ]
                     },
                     {
-                      type: "divider"
-                    },
-                    {
                       type: "section",
                       text: {
                         type: "mrkdwn",
                         text: (
                           "*Resumen de hallazgos*\n" +
-                          "• *Nuevos:* `" + $new + "`\n" +
-                          "• *Persistentes:* `" + $persistent + "`\n" +
-                          "• *Corregidos:* `" + $fixed + "`\n\n" +
+                          "• Nuevos: `" + $new + "`\n" +
+                          "• Persistentes: `" + $persistent + "`\n" +
+                          "• Corregidos: `" + $fixed + "`\n\n" +
                           "*Hallazgos por fase*\n" +
-                          "• *SAST:* `" + $sast + "`\n" +
-                          "• *SCA:* `" + $sca + "`\n" +
-                          "• *DAST:* `" + $dast + "`\n\n" +
+                          "• SAST: `" + $sast + "`\n" +
+                          "• SCA: `" + $sca + "`\n" +
+                          "• DAST: `" + $dast + "`\n\n" +
                           "*Total de Hallazgos:* `" + $current + "`"
                         )
                       }
