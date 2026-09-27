@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   actions: read
   pages: write
   id-token: write
@@ -52,7 +52,7 @@ jobs:
       - phase-3-dast
     if: always()
     permissions:
-      contents: read
+      contents: write
       actions: read
     uses: ./.github/workflows/security-history.yml
     secrets: inherit
@@ -236,7 +236,7 @@ jobs:
                   <div class="card"><div class="value">${dast_current:-N/A}</div><div class="label">DAST</div></div>
                 </div>
 
-                <a class="button" href="$REPORT_URL">Ver reporte HTML</a>
+                <a class="button" href="$REPORT_URL">Ver reporte</a>
                 <p class="note">Este reporte fue generado automáticamente por el componente de historial de hallazgos del modelo DevSecOps.</p>
               </div>
             </div>
@@ -299,7 +299,7 @@ jobs:
                       {type:"mrkdwn", text:("*DAST*\n" + $dast)}
                     ]},
                     {type:"actions", elements:[
-                      {type:"button", text:{type:"plain_text", text:"Ver reporte HTML", emoji:true}, style:"primary", url:$report_url},
+                      {type:"button", text:{type:"plain_text", text:"Ver reporte", emoji:true}, style:"primary", url:$report_url},
                       {type:"button", text:{type:"plain_text", text:"GitHub Actions", emoji:true}, url:$run_url}
                     ]}
                   ]

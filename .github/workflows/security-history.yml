@@ -27,7 +27,7 @@ jobs:
   history:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       actions: read
     outputs:
       history_status: ${{ steps.final_status.outputs.history_status }}
@@ -44,16 +44,6 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Restore previous security history snapshot
-        id: history_cache
-        uses: actions/cache@v5
-        with:
-          path: .security-history-cache
-          key: ${{ runner.os }}-security-history-${{ github.ref_name }}-${{ github.run_id }}
-          restore-keys: |
-            ${{ runner.os }}-security-history-${{ github.ref_name }}-
-            ${{ runner.os }}-security-history-
-
       - name: Prepare history directories
         run: |
           mkdir -p security/evidence/sonar
@@ -62,6 +52,50 @@ jobs:
           mkdir -p security/evidence/zap
           mkdir -p security/evidence/history
           mkdir -p .security-history-cache
+
+      - name: Restore previous findings snapshot from release
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          RELEASE_TAG="security-history-latest"
+          PREVIOUS_FILE=".security-history-cache/previous-findings.json"
+          PREVIOUS_EVIDENCE_FILE="security/evidence/history/previous-findings.json"
+
+          rm -f ".security-history-cache/current-findings.json"
+
+          echo "Trying to restore previous findings from release: ${RELEASE_TAG}"
+
+          if gh release download "$RELEASE_TAG"             --pattern "current-findings.json"             --dir ".security-history-cache"             --clobber; then
+            cp ".security-history-cache/current-findings.json" "$PREVIOUS_FILE"
+            cp ".security-history-cache/current-findings.json" "$PREVIOUS_EVIDENCE_FILE"
+            echo "Previous findings restored from release asset current-findings.json."
+          else
+            echo "No previous release snapshot found. This execution will be used as baseline."
+            cat > "$PREVIOUS_FILE" <<'JSON'
+          {
+            "metadata": {},
+            "findings": []
+          }
+          JSON
+            cp "$PREVIOUS_FILE" "$PREVIOUS_EVIDENCE_FILE"
+          fi
+
+          echo "Previous snapshot content:"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = Path(".security-history-cache/previous-findings.json")
+          try:
+              data = json.loads(p.read_text(encoding="utf-8"))
+              findings = data.get("findings", [])
+              print(f"previous_findings_count={len(findings)}")
+          except Exception as exc:
+              print("previous_findings_count=0")
+              print(f"previous_snapshot_error={exc}")
+          PY
 
       - name: Download Trivy reports artifact
         if: always()
@@ -157,6 +191,27 @@ jobs:
         run: |
           python security/history/generate_security_history.py
 
+      - name: Publish current findings snapshot to release
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          RELEASE_TAG="security-history-latest"
+
+          if [ ! -f "security/evidence/history/current-findings.json" ]; then
+            echo "current-findings.json was not generated. Release snapshot will not be updated."
+            exit 0
+          fi
+
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG"               --title "Security History Latest"               --notes "Último snapshot del historial de hallazgos de seguridad generado automáticamente por el pipeline DevSecOps."
+          fi
+
+          gh release upload "$RELEASE_TAG"             security/evidence/history/current-findings.json             security/evidence/history/security-history.json             security/evidence/history/summary.env             --clobber
+
+          echo "Security History snapshot published to release: ${RELEASE_TAG}"
+
       - name: Read history summary
         id: summary
         if: always()
@@ -182,6 +237,7 @@ jobs:
             security/evidence/history/security-history.html
             security/evidence/history/security-history.json
             security/evidence/history/current-findings.json
+            security/evidence/history/previous-findings.json
             security/evidence/history/summary.env
           if-no-files-found: warn
 
