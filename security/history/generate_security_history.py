@@ -80,6 +80,15 @@ def sev_rank(finding: Finding) -> int:
     return SEVERITY_ORDER.get(norm_severity(finding.get("severity")), -1)
 
 
+def phase_rank(finding: Finding) -> int:
+    phase_order = {
+        "SAST": 0,
+        "SCA": 1,
+        "DAST": 2,
+    }
+    return phase_order.get(str(finding.get("phase", "")).upper(), 9)
+
+
 def clean_text(value: Any, max_len: int = 220) -> str:
     """Convierte evidencia y mensajes de herramientas a texto plano para el HTML.
 
@@ -377,7 +386,7 @@ def normalize_all(args):
     return sorted(
         unique.values(),
         key=lambda finding: (
-            finding.get("phase", ""),
+            phase_rank(finding),
             finding.get("tool", ""),
             -sev_rank(finding),
             finding.get("title", ""),
@@ -424,7 +433,7 @@ def compare(previous, current):
             row["tracking_status"] = "Corregido"
             rows.append(row)
 
-    order = {
+    tracking_order = {
         "Nuevo": 0,
         "Persistente": 1,
         "Corregido": 2,
@@ -432,8 +441,8 @@ def compare(previous, current):
 
     rows.sort(
         key=lambda finding: (
-            order.get(finding.get("tracking_status", ""), 9),
-            finding.get("phase", ""),
+            tracking_order.get(finding.get("tracking_status", ""), 9),
+            phase_rank(finding),
             finding.get("tool", ""),
             -sev_rank(finding),
             finding.get("title", ""),
@@ -696,6 +705,16 @@ def generate_html(rows, summary, warnings):
       td {
         overflow-wrap: anywhere;
         word-break: break-word;
+      }
+
+      th:nth-child(2),
+      td[data-label="Fase"] {
+        white-space: nowrap;
+        min-width: 72px;
+        width: 72px;
+        text-align: center;
+        word-break: normal;
+        overflow-wrap: normal;
       }
 
       tr:last-child td {
