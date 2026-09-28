@@ -694,12 +694,62 @@ def generate_html(rows, summary, warnings):
 
     css = """
       :root {
+        color-scheme: light dark;
         --bg: #f8fafc;
         --text: #1f2937;
         --muted: #6b7280;
         --border: #e5e7eb;
         --header: #111827;
+        --header-text: #ffffff;
+        --header-subtitle: #d1d5db;
+        --header-meta: #e5e7eb;
+        --header-label: #f9fafb;
+        --header-code-bg: rgba(255, 255, 255, .16);
+        --header-code-text: #ffffff;
         --card: #ffffff;
+        --surface-soft: #f9fafb;
+        --surface-hover: #f3f4f6;
+        --control-bg: #ffffff;
+        --control-text: #374151;
+        --table-bg: #ffffff;
+        --table-head-bg: #f3f4f6;
+        --table-head-text: #374151;
+        --row-bg: #ffffff;
+        --code-bg: #f3f4f6;
+        --link: #2563eb;
+        --warning-bg: #fffbeb;
+        --warning-border: #fde68a;
+        --switch-track: #cbd5e1;
+        --switch-thumb: #ffffff;
+      }
+
+      html[data-theme="dark"] {
+        --bg: #0f172a;
+        --text: #e5e7eb;
+        --muted: #cbd5e1;
+        --border: #334155;
+        --header: #020617;
+        --header-text: #f8fafc;
+        --header-subtitle: #cbd5e1;
+        --header-meta: #cbd5e1;
+        --header-label: #f8fafc;
+        --header-code-bg: rgba(255, 255, 255, .10);
+        --header-code-text: #f8fafc;
+        --card: #111827;
+        --surface-soft: #172033;
+        --surface-hover: #243041;
+        --control-bg: #111827;
+        --control-text: #e5e7eb;
+        --table-bg: #111827;
+        --table-head-bg: #1f2937;
+        --table-head-text: #e5e7eb;
+        --row-bg: #111827;
+        --code-bg: #1f2937;
+        --link: #60a5fa;
+        --warning-bg: #422006;
+        --warning-border: #92400e;
+        --switch-track: #475569;
+        --switch-thumb: #f8fafc;
       }
 
       * {
@@ -714,10 +764,79 @@ def generate_html(rows, summary, warnings):
       }
 
       header {
+        position: relative;
         background: var(--header);
-        color: white;
+        color: var(--header-text);
         padding: 22px;
         border-radius: 12px;
+      }
+
+      .header-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+      }
+
+      .header-copy {
+        min-width: 0;
+      }
+
+      .theme-control {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        user-select: none;
+      }
+
+      .theme-icon {
+        font-size: 16px;
+        line-height: 1;
+      }
+
+      .theme-switch {
+        position: relative;
+        display: inline-block;
+        width: 48px;
+        height: 26px;
+      }
+
+      .theme-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .theme-slider {
+        position: absolute;
+        inset: 0;
+        cursor: pointer;
+        background: var(--switch-track);
+        border-radius: 999px;
+        transition: background .2s ease;
+      }
+
+      .theme-slider::before {
+        content: "";
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        left: 3px;
+        top: 3px;
+        background: var(--switch-thumb);
+        border-radius: 50%;
+        transition: transform .2s ease;
+        box-shadow: 0 1px 3px rgba(0,0,0,.3);
+      }
+
+      .theme-switch input:checked + .theme-slider::before {
+        transform: translateX(22px);
+      }
+
+      .theme-switch input:focus-visible + .theme-slider {
+        outline: 2px solid #60a5fa;
+        outline-offset: 2px;
       }
 
       h1 {
@@ -731,24 +850,24 @@ def generate_html(rows, summary, warnings):
 
       .subtitle {
         margin: 0;
-        color: #d1d5db;
+        color: var(--header-subtitle);
       }
 
       .meta {
         margin-top: 14px;
         font-size: 13px;
-        color: #e5e7eb;
+        color: var(--header-meta);
         line-height: 1.8;
       }
 
       .meta-label {
-        color: #f9fafb;
+        color: var(--header-label);
         font-weight: 700;
       }
 
       header code {
-        background: rgba(255, 255, 255, .16);
-        color: #ffffff;
+        background: var(--header-code-bg);
+        color: var(--header-code-text);
         padding: 2px 6px;
         border-radius: 4px;
         overflow-wrap: anywhere;
@@ -771,13 +890,14 @@ def generate_html(rows, summary, warnings):
 
       .card .value {
         font-size: 28px;
-        font-weight: bold;
+        font-weight: 800;
+        color: var(--text);
       }
 
       .card .label {
         color: var(--muted);
-        font-size: 13px;
-        margin-top: 4px;
+        font-size: 14px;
+        margin-top: 6px;
       }
 
       .new-card .value {
@@ -803,7 +923,7 @@ def generate_html(rows, summary, warnings):
       .filters {
         margin: 16px 0 18px;
         padding: 14px;
-        background: #f9fafb;
+        background: var(--surface-soft);
         border: 1px solid var(--border);
         border-radius: 12px;
       }
@@ -820,16 +940,16 @@ def generate_html(rows, summary, warnings):
         gap: 6px;
         font-size: 12px;
         font-weight: 700;
-        color: #374151;
+        color: var(--control-text);
       }
 
       .filter-control select {
         width: 100%;
         min-height: 38px;
         padding: 8px 10px;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border);
         border-radius: 8px;
-        background: #ffffff;
+        background: var(--control-bg);
         color: var(--text);
         font-size: 13px;
       }
@@ -837,22 +957,34 @@ def generate_html(rows, summary, warnings):
       .clear-filters {
         min-height: 38px;
         padding: 8px 12px;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border);
         border-radius: 8px;
-        background: #ffffff;
-        color: #374151;
+        background: var(--control-bg);
+        color: var(--text);
         font-weight: 700;
         cursor: pointer;
+        opacity: 1;
       }
 
       .clear-filters:hover {
-        background: #f3f4f6;
+        background: var(--surface-hover);
+      }
+
+      .clear-filters:focus-visible,
+      .filter-control select:focus-visible {
+        outline: 2px solid #60a5fa;
+        outline-offset: 2px;
       }
 
       .filter-summary {
         margin: 10px 0 0;
         color: var(--muted);
         font-size: 13px;
+      }
+
+      .details-text {
+        line-height: 1.65;
+        color: var(--text);
       }
 
       .table-wrap {
@@ -868,7 +1000,7 @@ def generate_html(rows, summary, warnings):
         min-width: 980px;
         border-collapse: collapse;
         font-size: 13px;
-        background: white;
+        background: var(--table-bg);
       }
 
       th,
@@ -880,10 +1012,10 @@ def generate_html(rows, summary, warnings):
       }
 
       th {
-        background: #f3f4f6;
+        background: var(--table-head-bg);
         font-size: 12px;
         text-transform: uppercase;
-        color: #374151;
+        color: var(--table-head-text);
       }
 
       td {
@@ -942,7 +1074,7 @@ def generate_html(rows, summary, warnings):
 
       .unknown {
         background: #e5e7eb;
-        color: #374151;
+        color: var(--control-text);
       }
 
       .new {
@@ -961,18 +1093,18 @@ def generate_html(rows, summary, warnings):
       }
 
       .warnings {
-        border-color: #fde68a;
-        background: #fffbeb;
+        border-color: var(--warning-border);
+        background: var(--warning-bg);
       }
 
       code {
-        background: #f3f4f6;
+        background: var(--code-bg);
         padding: 2px 5px;
         border-radius: 4px;
       }
 
       a {
-        color: #2563eb;
+        color: var(--link);
       }
 
       @media (max-width: 768px) {
@@ -983,6 +1115,14 @@ def generate_html(rows, summary, warnings):
         header {
           padding: 18px;
           border-radius: 10px;
+        }
+
+        .header-top {
+          gap: 12px;
+        }
+
+        .theme-control {
+          margin-top: 2px;
         }
 
         h1 {
@@ -1047,7 +1187,7 @@ def generate_html(rows, summary, warnings):
           border-radius: 12px;
           margin-bottom: 12px;
           padding: 10px 12px;
-          background: #ffffff;
+          background: var(--row-bg);
           box-shadow: 0 1px 2px rgba(0, 0, 0, .03);
         }
 
@@ -1076,6 +1216,14 @@ def generate_html(rows, summary, warnings):
           grid-template-columns: 1fr;
         }
 
+        .header-top {
+          align-items: flex-start;
+        }
+
+        .theme-icon {
+          display: none;
+        }
+
         td {
           grid-template-columns: 1fr;
           gap: 4px;
@@ -1093,12 +1241,33 @@ def generate_html(rows, summary, warnings):
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Historial de hallazgos de seguridad</title>
+  <script>
+    (function () {{
+      const savedTheme = localStorage.getItem("security-history-theme");
+      const systemDark = window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const initialTheme = savedTheme || (systemDark ? "dark" : "light");
+      document.documentElement.dataset.theme = initialTheme;
+    }})();
+  </script>
   <style>{css}</style>
 </head>
 <body>
   <header>
-    <h1>Historial de hallazgos de seguridad</h1>
-    <p class="subtitle">Seguimiento entre ejecuciones del pipeline DevSecOps: SAST, SCA y DAST.</p>
+    <div class="header-top">
+      <div class="header-copy">
+        <h1>Historial de hallazgos de seguridad</h1>
+        <p class="subtitle">Seguimiento entre ejecuciones del pipeline DevSecOps: SAST, SCA y DAST.</p>
+      </div>
+      <div class="theme-control" aria-label="Selector de tema">
+        <span class="theme-icon" aria-hidden="true">☀️</span>
+        <label class="theme-switch" title="Cambiar tema claro/oscuro">
+          <input type="checkbox" id="theme-toggle" aria-label="Activar modo oscuro">
+          <span class="theme-slider"></span>
+        </label>
+        <span class="theme-icon" aria-hidden="true">🌙</span>
+      </div>
+    </div>
     <div class="meta">
       <span class="meta-label">Repositorio:</span> <code>{html.escape(repo)}</code> ·
       <span class="meta-label">Rama/PR:</span> <code>{html.escape(ref)}</code> ·
@@ -1123,7 +1292,7 @@ def generate_html(rows, summary, warnings):
 
   <section>
     <h2>Detalle de seguimiento</h2>
-    <p>
+    <p class="details-text">
       La clasificación se realiza comparando el snapshot anterior contra los hallazgos actuales.
       Si el hallazgo estaba antes y ya no aparece, se marca como <b>Corregido</b>.
       Si aparece en ambas ejecuciones, se marca como <b>Persistente</b>.
@@ -1143,6 +1312,52 @@ def generate_html(rows, summary, warnings):
       </table>
     </div>
   </section>
+
+
+  <script>
+    (function () {{
+      const toggle = document.getElementById("theme-toggle");
+      const media = window.matchMedia
+        ? window.matchMedia("(prefers-color-scheme: dark)")
+        : null;
+
+      function currentTheme() {{
+        return document.documentElement.dataset.theme || "light";
+      }}
+
+      function setTheme(theme, persist) {{
+        document.documentElement.dataset.theme = theme;
+        if (toggle) {{
+          toggle.checked = theme === "dark";
+        }}
+        if (persist) {{
+          localStorage.setItem("security-history-theme", theme);
+        }}
+      }}
+
+      setTheme(currentTheme(), false);
+
+      if (toggle) {{
+        toggle.addEventListener("change", function () {{
+          setTheme(toggle.checked ? "dark" : "light", true);
+        }});
+      }}
+
+      if (media) {{
+        const onSystemThemeChange = function (event) {{
+          if (!localStorage.getItem("security-history-theme")) {{
+            setTheme(event.matches ? "dark" : "light", false);
+          }}
+        }};
+
+        if (media.addEventListener) {{
+          media.addEventListener("change", onSystemThemeChange);
+        }} else if (media.addListener) {{
+          media.addListener(onSystemThemeChange);
+        }}
+      }}
+    }})();
+  </script>
 
   {filter_script}
 </body>

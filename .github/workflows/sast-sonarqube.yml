@@ -58,6 +58,10 @@ jobs:
             -Dsonar.organization=${{ secrets.SONAR_ORG }}
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
             -Dsonar.branch.name=${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+            -Dsonar.sources=api-auth
+            -Dsonar.exclusions=api-auth/test/**
+            -Dsonar.tests=api-auth/test
+            -Dsonar.python.version=3.11
 
       - name: SonarCloud Quality Gate
         id: qg
