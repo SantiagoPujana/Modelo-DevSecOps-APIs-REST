@@ -17,6 +17,7 @@ Ayuda:
 from __future__ import annotations
 
 import argparse
+import pickle
 import random
 import sys
 import time
@@ -99,6 +100,41 @@ def build_endpoints(base_url: str) -> list[dict[str, Any]]:
             "params": {"url": "http://no-valido.local"},
             "kind": "failure",
         },
+        {
+            "name": "pickle",
+            "method": "POST",
+            "url": f"{base_url}/pickle",
+            "data": pickle.dumps({"source": "traffic-generator", "safe": True}),
+            "headers": {"Content-Type": "application/octet-stream"},
+            "kind": "success",
+        },
+        {
+            "name": "debug_secrets",
+            "method": "GET",
+            "url": f"{base_url}/debug/secrets",
+            "kind": "success",
+        },
+        {
+            "name": "debug_system",
+            "method": "GET",
+            "url": f"{base_url}/debug/system",
+            "params": {"command": "printf devsecops-test"},
+            "kind": "success",
+        },
+        {
+            "name": "debug_yaml",
+            "method": "POST",
+            "url": f"{base_url}/debug/yaml",
+            "json": "name: academic-test\nenvironment: lab",
+            "kind": "success",
+        },
+        {
+            "name": "debug_md5",
+            "method": "GET",
+            "url": f"{base_url}/debug/md5",
+            "params": {"value": "academic-test"},
+            "kind": "success",
+        },
     ]
 
 
@@ -180,9 +216,10 @@ def list_endpoints(endpoints: list[dict[str, Any]]) -> None:
     print("Endpoints disponibles:\n")
     for ep in endpoints:
         params = ep.get("params", {})
+        has_body = "json" in ep or "data" in ep
         print(
             f"- {ep['name']:<15} | {ep['method']:<4} | {ep['url']} | "
-            f"tipo={ep['kind']} | params={params}"
+            f"tipo={ep['kind']} | params={params} | body={'sí' if has_body else 'no'}"
         )
 
 
@@ -191,6 +228,8 @@ def call_endpoint(endpoint: dict[str, Any], timeout: float) -> tuple[int, float,
     url = endpoint["url"]
     params = endpoint.get("params")
     json_body = endpoint.get("json")
+    data_body = endpoint.get("data")
+    headers = endpoint.get("headers")
 
     start = time.perf_counter()
     try:
@@ -199,6 +238,8 @@ def call_endpoint(endpoint: dict[str, Any], timeout: float) -> tuple[int, float,
             url=url,
             params=params,
             json=json_body,
+            data=data_body,
+            headers=headers,
             timeout=timeout,
         )
         elapsed = time.perf_counter() - start

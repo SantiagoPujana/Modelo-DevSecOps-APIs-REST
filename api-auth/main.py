@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+"""
 import hashlib
 import os
 import pickle
@@ -8,11 +9,13 @@ import subprocess
 
 import requests
 import yaml
+"""
 
 from fastapi import Body, FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
+"""
 class AppSecrets:
     signing_key = "supersecret1234"
     aws_key_id = "AKIAIOSFODNN7EXAMPLE"
@@ -23,9 +26,15 @@ class AppSecrets:
         "MIIEpAIBAAKCAQEA7FakeKeyForAcademicTestingOnlyDoNotUse\n"
         "-----END RSA PRIVATE KEY-----"
     )
+"""
 
 def build_application() -> FastAPI:
-    application = FastAPI()
+    application = FastAPI(
+        title="API Auth Vulnerable Lab",
+        description="API REST deliberadamente vulnerable para pruebas académicas DevSecOps.",
+        version="1.0.0",
+    )
+
     application.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -33,61 +42,109 @@ def build_application() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
     return application
 
 app = build_application()
 
+"""
 def open_seed_database() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
     cur = conn.cursor()
+
     cur.execute(
         "CREATE TABLE IF NOT EXISTS accounts ("
         "id INTEGER, username TEXT, password TEXT)"
     )
-    cur.execute("INSERT INTO accounts VALUES (1, 'admin', 'admin')")
+
+    cur.execute(
+        "INSERT INTO accounts VALUES (1, 'admin', 'admin')"
+    )
+
     conn.commit()
     return conn
 
 @app.get("/")
 def health_check():
-    return {"message": "API Auth vulnerable lab is running"}
+    return {
+        "message": "API Auth vulnerable lab is running"
+    }
 
 @app.get("/user")
 def lookup_account(username: str = Query(...)):
     conn = open_seed_database()
     cur = conn.cursor()
-    built_query = "SELECT id, username FROM accounts WHERE username = '" + username + "'"
+
+    built_query = (
+        "SELECT id, username FROM accounts "
+        "WHERE username = '" + username + "'"
+    )
+
     cur.execute(built_query)
     matches = cur.fetchall()
-    return {"rows": matches, "query": built_query}
+
+    return {
+        "rows": matches,
+        "query": built_query,
+    }
 
 @app.get("/read")
 def read_file_head(path: str = Query(...)):
-    handle = open(path, "r", encoding="utf-8", errors="ignore")
+    handle = open(
+        path,
+        "r",
+        encoding="utf-8",
+        errors="ignore",
+    )
+
     snippet = handle.read(200)
     handle.close()
-    return {"head": snippet}
+
+    return {
+        "head": snippet,
+    }
 
 @app.get("/exec")
 def ping_host(host: str = Query(...)):
     shell_command = f"ping -c 1 {host}"
-    output = subprocess.check_output(shell_command, shell=True)
-    return {"cmd": shell_command, "out": output.decode(errors="ignore")[:120]}
+
+    output = subprocess.check_output(
+        shell_command,
+        shell=True,
+    )
+
+    return {
+        "cmd": shell_command,
+        "out": output.decode(errors="ignore")[:120],
+    }
 
 @app.post("/pickle")
 def load_pickled_object(payload: bytes = Body(...)):
     restored = pickle.loads(payload)
-    return {"type": str(type(restored))}
+
+    return {
+        "type": str(type(restored)),
+    }
 
 @app.get("/hash")
 def hash_password_md5(password: str = Query(...)):
     digest = hashlib.md5(password.encode())
-    return {"md5": digest.hexdigest()}
+
+    return {
+        "md5": digest.hexdigest(),
+    }
 
 @app.get("/fetch")
 def proxy_fetch(url: str = Query(...)):
-    resp = requests.get(url, verify=False)
-    return {"status": resp.status_code, "len": len(resp.text)}
+    resp = requests.get(
+        url,
+        verify=False,
+    )
+
+    return {
+        "status": resp.status_code,
+        "len": len(resp.text),
+    }
 
 @app.get("/debug/secrets")
 def dump_secrets():
@@ -102,17 +159,31 @@ def dump_secrets():
 @app.get("/debug/system")
 def run_system_command(command: str = Query(...)):
     result = os.popen(command).read()
-    return {"command": command, "result": result[:200]}
+
+    return {
+        "command": command,
+        "result": result[:200],
+    }
 
 @app.post("/debug/yaml")
 def parse_untrusted_yaml(payload: str = Body(...)):
-    parsed = yaml.load(payload, Loader=yaml.Loader)
-    return {"parsed": str(parsed)}
+    parsed = yaml.load(
+        payload,
+        Loader=yaml.Loader,
+    )
+
+    return {
+        "parsed": str(parsed),
+    }
 
 @app.get("/debug/md5")
 def hash_value_md5(value: str = Query(...)):
     digest = hashlib.md5()
     digest.update(value.encode())
-    return {"hash": digest.hexdigest()}
+
+    return {
+        "hash": digest.hexdigest(),
+    }
+"""
 
 Instrumentator().instrument(app).expose(app)

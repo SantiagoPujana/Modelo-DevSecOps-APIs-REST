@@ -58,6 +58,8 @@ python3 tests/generate_api_traffic.py --help
 
 Eso mostrará todos los parámetros disponibles.
 
+Los nombres que pueden utilizarse con `--only` incluyen, entre otros: `root`, `docs`, `openapi`, `metrics`, `user_ok`, `user_sqli`, `hash`, `read_ok`, `read_fail`, `exec_ok`, `exec_injection`, `fetch_ok`, `fetch_fail`, `pickle`, `debug_secrets`, `debug_system`, `debug_yaml` y `debug_md5`.
+
 ---
 
 ## Parámetros disponibles
@@ -216,8 +218,13 @@ Dependiendo de los parámetros, el script puede generar tráfico sobre:
 - `/read`
 - `/exec`
 - `/fetch`
+- `/pickle`
+- `/debug/secrets`
+- `/debug/system`
+- `/debug/yaml`
+- `/debug/md5`
 
-También puede incluir casos exitosos y fallidos para enriquecer las métricas.
+El generador usa cargas controladas para los endpoints vulnerables. Por ejemplo, `/pickle` recibe un objeto benigno serializado, `/debug/system` ejecuta un comando inofensivo, y `/debug/yaml` recibe contenido YAML simple. También puede incluir casos exitosos y fallidos para enriquecer las métricas.
 
 ---
 
@@ -253,6 +260,7 @@ Este script sirve para:
 - generar tráfico de prueba para Prometheus
 - poblar dashboards en Grafana
 - observar latencia y volumen de requests
+- recorrer la superficie principal de `api-auth`, incluidos los endpoints vulnerables del laboratorio
 - provocar respuestas 4xx/5xx de forma controlada
 - demostrar la fase de monitoreo del modelo DevSecOps
 
