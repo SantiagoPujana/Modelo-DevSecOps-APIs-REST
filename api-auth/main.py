@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-"""
 import hashlib
 import os
 import pickle
@@ -9,13 +8,11 @@ import subprocess
 
 import requests
 import yaml
-"""
 
 from fastapi import Body, FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
-"""
 class AppSecrets:
     signing_key = "supersecret1234"
     aws_key_id = "AKIAIOSFODNN7EXAMPLE"
@@ -26,7 +23,6 @@ class AppSecrets:
         "MIIEpAIBAAKCAQEA7FakeKeyForAcademicTestingOnlyDoNotUse\n"
         "-----END RSA PRIVATE KEY-----"
     )
-"""
 
 def build_application() -> FastAPI:
     application = FastAPI()
@@ -41,7 +37,6 @@ def build_application() -> FastAPI:
 
 app = build_application()
 
-"""
 def open_seed_database() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
     cur = conn.cursor()
@@ -52,13 +47,11 @@ def open_seed_database() -> sqlite3.Connection:
     cur.execute("INSERT INTO accounts VALUES (1, 'admin', 'admin')")
     conn.commit()
     return conn
-"""
 
 @app.get("/")
 def health_check():
     return {"message": "API Auth vulnerable lab is running"}
 
-"""
 @app.get("/user")
 def lookup_account(username: str = Query(...)):
     conn = open_seed_database()
@@ -121,6 +114,5 @@ def hash_value_md5(value: str = Query(...)):
     digest = hashlib.md5()
     digest.update(value.encode())
     return {"hash": digest.hexdigest()}
-"""
 
 Instrumentator().instrument(app).expose(app)

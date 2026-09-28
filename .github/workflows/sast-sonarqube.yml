@@ -19,6 +19,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Set up Python
@@ -46,24 +47,8 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: SonarCloud Scan (Pull Request)
-        id: sonar_scan_pr
-        if: ${{ github.event_name == 'pull_request' }}
-        continue-on-error: true
-        uses: sonarsource/sonarqube-scan-action@v8
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.organization=${{ secrets.SONAR_ORG }}
-            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
-            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-            -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
-            -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}
-
       - name: SonarCloud Scan (Branch)
         id: sonar_scan_branch
-        if: ${{ github.event_name != 'pull_request' }}
         continue-on-error: true
         uses: SonarSource/sonarqube-scan-action@v8
         env:
@@ -72,6 +57,7 @@ jobs:
           args: >
             -Dsonar.organization=${{ secrets.SONAR_ORG }}
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.branch.name=${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
 
       - name: SonarCloud Quality Gate
         id: qg
@@ -84,19 +70,10 @@ jobs:
         id: final_status
         if: always()
         run: |
-          SONAR_SCAN_PR_OUTCOME="${{ steps.sonar_scan_pr.outcome }}"
-          SONAR_SCAN_BRANCH_OUTCOME="${{ steps.sonar_scan_branch.outcome }}"
+          SONAR_SCAN_OUTCOME="${{ steps.sonar_scan_branch.outcome }}"
           QG_STATUS="${{ steps.qg.outputs.quality-gate-status }}"
 
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            SONAR_SCAN_OUTCOME="$SONAR_SCAN_PR_OUTCOME"
-          else
-            SONAR_SCAN_OUTCOME="$SONAR_SCAN_BRANCH_OUTCOME"
-          fi
-
-          echo "sonar_scan_pr_outcome=$SONAR_SCAN_PR_OUTCOME"
-          echo "sonar_scan_branch_outcome=$SONAR_SCAN_BRANCH_OUTCOME"
-          echo "sonar_scan_selected_outcome=$SONAR_SCAN_OUTCOME"
+          echo "sonar_scan_branch_outcome=$SONAR_SCAN_OUTCOME"
           echo "qg_status=$QG_STATUS"
 
           SECURITY_STATUS="passed"
@@ -118,7 +95,6 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Control | Result |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| SonarCloud Scan (PR) | ${{ steps.sonar_scan_pr.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| SonarCloud Scan (Branch) | ${{ steps.sonar_scan_branch.outcome }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Quality Gate | ${{ steps.qg.outputs.quality-gate-status }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Consolidated Security Status | ${{ steps.final_status.outputs.security_status }} |" >> "$GITHUB_STEP_SUMMARY"
@@ -178,7 +154,7 @@ jobs:
                         {type:"section", text:{type:"mrkdwn", text:("*Pull Request:* <" + $prurl + "|PR #" + $prnum + " - " + $prtitle + ">")}},
                         {type:"actions", elements:[
                           {type:"button", text:{type:"plain_text", text:"Check PR"}, url:$prurl},
-                          {type:"button", text:{type:"plain_text", text:"SonarCloud (PR)"}, url:("https://sonarcloud.io/dashboard?id=SONAR_PROJECT_KEY&pullRequest=" + $prnum)},
+                          {type:"button", text:{type:"plain_text", text:"SonarCloud (Branch)"}, url:("https://sonarcloud.io/dashboard?id=SONAR_PROJECT_KEY&branch=" + $ref)},
                           {type:"button", text:{type:"plain_text", text:"GitHub Actions"}, url:$run}
                         ]}
                       ]
@@ -214,7 +190,7 @@ jobs:
             PR_BLOCK="<p><b>Pull Request:</b>
               <a href=\"$PR_URL\">PR #$PR_NUM - $PR_TITLE</a></p>
               <p><b>SonarCloud [Project]:</b> <a href=\"https://sonarcloud.io/project/overview?id=SONAR_PROJECT_KEY\">Overview</a></p>
-              <p><b>SonarCloud (PR):</b> <a href=\"https://sonarcloud.io/dashboard?id=SONAR_PROJECT_KEY&pullRequest=$PR_NUM\">Check PR on SonarCloud</a></p>"
+              <p><b>SonarCloud (Branch):</b> <a href=\"https://sonarcloud.io/dashboard?id=SONAR_PROJECT_KEY&branch=$REF_NAME\">Check branch on SonarCloud</a></p>"
           else
             PR_BLOCK="<p><b>SonarCloud [Project]:</b> <a href=\"https://sonarcloud.io/project/overview?id=SONAR_PROJECT_KEY\">Overview</a></p>"
           fi
@@ -233,7 +209,7 @@ jobs:
 
           $PR_BLOCK
 
-          <p>👉 Please check Issues, Vulnerabilities and Hotspots on SonarCloud.</p>
+          <p>👉 Please check the branch analysis and security issues on SonarCloud.</p>
           EOF
           )
 

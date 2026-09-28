@@ -201,8 +201,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
-          PR_NUMBER: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          REF_NAME: ${{ github.ref_name }}
+          REF_NAME: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
         run: |
           python - <<'PY'
           import json
@@ -217,7 +216,6 @@ jobs:
 
           token = os.getenv("SONAR_TOKEN", "")
           project_key = os.getenv("SONAR_PROJECT_KEY", "")
-          pr_number = os.getenv("PR_NUMBER", "")
           ref_name = os.getenv("REF_NAME", "")
 
           if not token or not project_key:
@@ -232,9 +230,7 @@ jobs:
               "ps": "500",
           }
 
-          if pr_number:
-              params["pullRequest"] = pr_number
-          elif ref_name:
+          if ref_name:
               params["branch"] = ref_name
 
           url = "https://sonarcloud.io/api/issues/search?" + urllib.parse.urlencode(params)
@@ -251,6 +247,7 @@ jobs:
 
           out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
           print(f"SonarCloud issues stored in {out}")
+          print("SonarCloud branch used for Security History:", ref_name or "(none)")
           PY
 
       - name: List collected evidence files
@@ -429,13 +426,19 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           REPO: ${{ github.repository }}
           REF_NAME: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+          PR_NUMBER: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           ACTOR: ${{ github.actor }}
           EVENT_NAME: ${{ github.event_name }}
         shell: bash
         run: |
+          DISPLAY_REF="$REF_NAME"
+          if [ -n "$PR_NUMBER" ]; then
+            DISPLAY_REF="$REF_NAME (PR #$PR_NUMBER)"
+          fi
+
           PAYLOAD=$(jq -c -n \
             --arg repo "$REPO" \
-            --arg ref "$REF_NAME" \
+            --arg ref "$DISPLAY_REF" \
             --arg actor "$ACTOR" \
             --arg event "$EVENT_NAME" \
             --arg run_id "${{ github.run_id }}" \
@@ -546,10 +549,16 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           REPO: ${{ github.repository }}
           REF_NAME: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+          PR_NUMBER: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           ACTOR: ${{ github.actor }}
           EVENT_NAME: ${{ github.event_name }}
         shell: bash
         run: |
+          DISPLAY_REF="$REF_NAME"
+          if [ -n "$PR_NUMBER" ]; then
+            DISPLAY_REF="$REF_NAME (PR #$PR_NUMBER)"
+          fi
+
           SUBJECT="[Security History] Reporte generado - $REPO"
 
           BODY=$(cat <<EOF
@@ -745,7 +754,7 @@ jobs:
               <div class="content">
                 <table class="meta">
                   <tr><td>Repositorio</td><td>$REPO</td></tr>
-                  <tr><td>Rama/PR</td><td>$REF_NAME</td></tr>
+                  <tr><td>Rama/PR</td><td>$DISPLAY_REF</td></tr>
                   <tr><td>Actor</td><td>$ACTOR</td></tr>
                   <tr><td>Evento</td><td>$EVENT_NAME</td></tr>
                   <tr><td>Run</td><td><a href="$RUN_URL">Abrir ejecución en GitHub Actions</a></td></tr>
