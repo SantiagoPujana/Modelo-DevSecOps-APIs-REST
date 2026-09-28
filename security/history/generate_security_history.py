@@ -148,8 +148,27 @@ def parse_sonar(path: Path):
 
     findings = []
 
+    # Defensa adicional: aunque la consulta a SonarCloud usa resolved=false,
+    # nunca considerar como hallazgo actual un issue ya cerrado o resuelto.
+    terminal_statuses = {
+        "CLOSED",
+        "RESOLVED",
+        "FIXED",
+        "REMOVED",
+    }
+
+    skipped_terminal = 0
+
     for issue in issues:
         if not isinstance(issue, dict):
+            continue
+
+        issue_status = str(
+            issue.get("status") or issue.get("issueStatus") or ""
+        ).strip().upper()
+
+        if issue_status in terminal_statuses:
+            skipped_terminal += 1
             continue
 
         component = issue.get("component") or issue.get("project") or ""
@@ -180,6 +199,12 @@ def parse_sonar(path: Path):
                     "status": issue.get("status") or issue.get("issueStatus") or "",
                 },
             )
+        )
+
+    if skipped_terminal:
+        warnings.append(
+            f"SonarCloud: se ignoraron {skipped_terminal} issue(s) cerrados/resueltos "
+            "para que no se contabilicen como hallazgos actuales."
         )
 
     return findings, warnings
