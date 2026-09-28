@@ -726,7 +726,7 @@ def generate_html(rows, summary, warnings):
       html[data-theme="dark"] {
         --bg: #0f172a;
         --text: #e5e7eb;
-        --muted: #94a3b8;
+        --muted: #cbd5e1;
         --border: #334155;
         --header: #020617;
         --header-text: #f8fafc;
@@ -890,13 +890,14 @@ def generate_html(rows, summary, warnings):
 
       .card .value {
         font-size: 28px;
-        font-weight: bold;
+        font-weight: 800;
+        color: var(--text);
       }
 
       .card .label {
         color: var(--muted);
-        font-size: 13px;
-        margin-top: 4px;
+        font-size: 14px;
+        margin-top: 6px;
       }
 
       .new-card .value {
@@ -956,22 +957,34 @@ def generate_html(rows, summary, warnings):
       .clear-filters {
         min-height: 38px;
         padding: 8px 12px;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border);
         border-radius: 8px;
-        background: #ffffff;
-        color: var(--control-text);
+        background: var(--control-bg);
+        color: var(--text);
         font-weight: 700;
         cursor: pointer;
+        opacity: 1;
       }
 
       .clear-filters:hover {
         background: var(--surface-hover);
       }
 
+      .clear-filters:focus-visible,
+      .filter-control select:focus-visible {
+        outline: 2px solid #60a5fa;
+        outline-offset: 2px;
+      }
+
       .filter-summary {
         margin: 10px 0 0;
         color: var(--muted);
         font-size: 13px;
+      }
+
+      .details-text {
+        line-height: 1.65;
+        color: var(--text);
       }
 
       .table-wrap {
@@ -999,10 +1012,10 @@ def generate_html(rows, summary, warnings):
       }
 
       th {
-        background: #f3f4f6;
+        background: var(--table-head-bg);
         font-size: 12px;
         text-transform: uppercase;
-        color: var(--control-text);
+        color: var(--table-head-text);
       }
 
       td {
@@ -1279,7 +1292,7 @@ def generate_html(rows, summary, warnings):
 
   <section>
     <h2>Detalle de seguimiento</h2>
-    <p>
+    <p class="details-text">
       La clasificación se realiza comparando el snapshot anterior contra los hallazgos actuales.
       Si el hallazgo estaba antes y ya no aparece, se marca como <b>Corregido</b>.
       Si aparece en ambas ejecuciones, se marca como <b>Persistente</b>.
