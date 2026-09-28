@@ -111,13 +111,18 @@ def build_finding(
     evidence: str = "",
     url: str = "",
     extra: Optional[Dict[str, Any]] = None,
+    fingerprint_location: Optional[str] = None,
 ) -> Finding:
     title_c = clean_text(title, 260)
     location_c = clean_text(location, 260)
     rule_c = clean_text(rule_id, 160)
+    fingerprint_location_c = clean_text(
+        fingerprint_location if fingerprint_location is not None else location,
+        260,
+    )
 
     return {
-        "fingerprint": sha_id(phase, tool, rule_c, location_c, title_c),
+        "fingerprint": sha_id(phase, tool, rule_c, fingerprint_location_c, title_c),
         "phase": phase,
         "tool": tool,
         "rule_id": rule_c,
@@ -174,6 +179,12 @@ def parse_sonar(path: Path):
         component = issue.get("component") or issue.get("project") or ""
         line = issue.get("line") or (issue.get("textRange") or {}).get("startLine") or ""
 
+        # Para SonarCloud el número de línea puede cambiar cuando se insertan o
+        # eliminan líneas antes de un hallazgo. La línea se conserva para mostrarla
+        # en el reporte, pero se excluye del fingerprint para evitar clasificar el
+        # mismo issue como "Corregido" + "Nuevo" por un simple desplazamiento.
+        sonar_fingerprint_location = str(component)
+
         findings.append(
             build_finding(
                 phase="SAST",
@@ -188,6 +199,7 @@ def parse_sonar(path: Path):
                 severity=str(issue.get("severity") or issue.get("impactSeverity") or "UNKNOWN"),
                 location=f"{component}:{line}" if line else str(component),
                 source_report=str(path),
+                fingerprint_location=sonar_fingerprint_location,
                 evidence=(
                     f"issue_key={issue.get('key', '')}; "
                     f"type={issue.get('type', '')}; "
