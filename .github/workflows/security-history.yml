@@ -429,13 +429,19 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           REPO: ${{ github.repository }}
           REF_NAME: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+          PR_NUMBER: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           ACTOR: ${{ github.actor }}
           EVENT_NAME: ${{ github.event_name }}
         shell: bash
         run: |
+          DISPLAY_REF="$REF_NAME"
+          if [ -n "$PR_NUMBER" ]; then
+            DISPLAY_REF="$REF_NAME (PR #$PR_NUMBER)"
+          fi
+
           PAYLOAD=$(jq -c -n \
             --arg repo "$REPO" \
-            --arg ref "$REF_NAME" \
+            --arg ref "$DISPLAY_REF" \
             --arg actor "$ACTOR" \
             --arg event "$EVENT_NAME" \
             --arg run_id "${{ github.run_id }}" \
@@ -546,10 +552,16 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           REPO: ${{ github.repository }}
           REF_NAME: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+          PR_NUMBER: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           ACTOR: ${{ github.actor }}
           EVENT_NAME: ${{ github.event_name }}
         shell: bash
         run: |
+          DISPLAY_REF="$REF_NAME"
+          if [ -n "$PR_NUMBER" ]; then
+            DISPLAY_REF="$REF_NAME (PR #$PR_NUMBER)"
+          fi
+
           SUBJECT="[Security History] Reporte generado - $REPO"
 
           BODY=$(cat <<EOF
@@ -745,7 +757,7 @@ jobs:
               <div class="content">
                 <table class="meta">
                   <tr><td>Repositorio</td><td>$REPO</td></tr>
-                  <tr><td>Rama/PR</td><td>$REF_NAME</td></tr>
+                  <tr><td>Rama/PR</td><td>$DISPLAY_REF</td></tr>
                   <tr><td>Actor</td><td>$ACTOR</td></tr>
                   <tr><td>Evento</td><td>$EVENT_NAME</td></tr>
                   <tr><td>Run</td><td><a href="$RUN_URL">Abrir ejecución en GitHub Actions</a></td></tr>

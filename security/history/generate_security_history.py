@@ -483,11 +483,35 @@ def status_badge(status):
     return f'<span class="status {css}">{html.escape(status)}</span>'
 
 
+def github_ref_display() -> str:
+    """Return a human-readable branch/PR label for GitHub Actions."""
+    event = os.getenv("GITHUB_EVENT_NAME", "")
+    ref_name = os.getenv("GITHUB_REF_NAME", "")
+    head_ref = os.getenv("GITHUB_HEAD_REF", "")
+
+    if event == "pull_request":
+        pr_number = ""
+
+        # On pull_request events GitHub commonly exposes refs like "64/merge".
+        match = re.match(r"^(\\d+)/(?:merge|head)$", ref_name)
+        if match:
+            pr_number = match.group(1)
+
+        # Prefer the real source branch of the pull request.
+        branch = head_ref or ref_name or "pull_request"
+
+        if pr_number:
+            return f"{branch} (PR #{pr_number})"
+        return branch
+
+    return ref_name or "local"
+
+
 def generate_html(rows, summary, warnings):
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     repo = os.getenv("GITHUB_REPOSITORY", "local")
     run_id = os.getenv("GITHUB_RUN_ID", "local")
-    ref = os.getenv("GITHUB_REF_NAME", "local")
+    ref = github_ref_display()
     event = os.getenv("GITHUB_EVENT_NAME", "local")
 
     def card(label, value, css=""):
