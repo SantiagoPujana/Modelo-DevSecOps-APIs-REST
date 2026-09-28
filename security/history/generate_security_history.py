@@ -91,13 +91,6 @@ def phase_rank(finding: Finding) -> int:
 
 
 def clean_text(value: Any, max_len: int = 220) -> str:
-    """Convierte evidencia y mensajes de herramientas a texto plano para el HTML.
-
-    Algunos reportes, especialmente OWASP ZAP, entregan la descripción con
-    etiquetas HTML como <p>, <br> o entidades escapadas. Para que la columna
-    Evidencia sea legible, primero se decodifican entidades HTML y luego se
-    eliminan las etiquetas, dejando solo texto.
-    """
     text = html.unescape(str(value or ""))
     text = re.sub(r"(?i)<\s*(br|/p|/li|/div|/section)\s*/?>", " ", text)
     text = re.sub(r"<[^>]+>", " ", text)
