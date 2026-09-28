@@ -64,7 +64,7 @@ def health_check():
     return {
         "message": "API Auth vulnerable lab is running"
     }
-
+"""
 @app.get("/user")
 def lookup_account(username: str = Query(...)):
     conn = open_seed_database()
@@ -81,6 +81,21 @@ def lookup_account(username: str = Query(...)):
     return {
         "rows": matches,
         "query": built_query,
+    }
+"""
+@app.get("/user")
+def lookup_account(username: str = Query(...)):
+    conn = open_seed_database()
+    cur = conn.cursor()
+
+    query = "SELECT id, username FROM accounts WHERE username = ?"
+
+    cur.execute(query, (username,))
+    matches = cur.fetchall()
+
+    return {
+        "rows": matches,
+        "query": query,
     }
 
 @app.get("/read")
