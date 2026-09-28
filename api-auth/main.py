@@ -13,6 +13,7 @@ from fastapi import Body, FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
+
 class AppSecrets:
     signing_key = "supersecret1234"
     aws_key_id = "AKIAIOSFODNN7EXAMPLE"
