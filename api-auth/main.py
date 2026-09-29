@@ -64,7 +64,7 @@ def health_check():
     return {
         "message": "API Auth vulnerable lab is running"
     }
-
+"""
 @app.get("/user")
 def lookup_account(username: str = Query(...)):
     conn = open_seed_database()
@@ -97,7 +97,7 @@ def lookup_account(username: str = Query(...)):
         "rows": matches,
         "query": query,
     }
-"""
+
 @app.get("/read")
 def read_file_head(path: str = Query(...)):
     handle = open(
